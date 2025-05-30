@@ -83,6 +83,7 @@
       let output = `<?xml version="1.0" encoding="utf-8"?>\n<xmeml version="5">\n  <sequence id="video">\n    <name>txtconvert</name>\n    <duration>${lines.length * duration}</duration>\n    <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n    <media>\n      <video>\n        <format>\n          <samplecharacteristics>\n            <width>1920</width><height>1080</height>\n            <anamorphic>false</anamorphic>\n            <pixelaspectratio>square</pixelaspectratio>\n            <fielddominance>none</fielddominance>\n          </samplecharacteristics>\n        </format>\n        <track>`;
 
       lines.forEach((text, i) => {
+        text = text.replace(/&/g, '＆');
         const start = i * duration;
         const end = start + duration;
         const safeText = escapeXML(text);
