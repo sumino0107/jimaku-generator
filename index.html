@@ -9,9 +9,33 @@
     textarea { height: 200px; }
     button { padding: 0.5em 1em; font-size: 1em; margin-right: 0.5em; }
     label { font-weight: bold; display: block; margin-top: 1em; }
+
+
+.logo {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+}
+.logo img {
+  height: 40px;
+  opacity: 0.8;
+}
+
+
+
+
+
   </style>
 </head>
 <body>
+<div class="logo">
+  <img src="logo.png" alt="ツールロゴ" />
+</div>
+
+
+
+
   <h1>テキスト → Premiere用XML / SRT変換ツール</h1>
 
   <label for="durationInput">各テロップの表示秒数：</label>
