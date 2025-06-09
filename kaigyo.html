@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>字幕用 自然改行ツール（引用符対応）</title>
- <style>
+  <meta charset="UTF-8" />
+  <title>Premiere用XML & SRT字幕作成ツール</title>
+  <style>
     body { font-family: sans-serif; margin: 2em auto; max-width: 800px; background: #f9f9f9; padding: 1em; }
     textarea, input { width: 100%; font-family: monospace; margin-bottom: 1em; }
     textarea { height: 200px; }
@@ -35,111 +35,128 @@
 
 
 
-  <h1>字幕用 自然改行ツール（引用符対応）</h1>
 
-  <label>テキスト入力:</label>
-  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
+  <h1>テキスト → Premiere用XML / SRT変換ツール</h1>
 
-  <label>最大文字数（1行）:</label>
-  <input type="number" id="maxChars" value="70" min="10" />
+  <label for="durationInput">各テロップの表示秒数：</label>
+  <input type="number" id="durationInput" value="5" min="1" />
 
-  <button onclick="formatText()">整形する</button>
+  <label for="fontSizeInput">フォントサイズ：</label>
+  <input type="number" id="fontSizeInput" value="24" min="1" max="200"> px
 
-  <h2>整形後テキスト:</h2>
-  <div id="output"></div>
+  <label for="inputText">テロップ本文（1行 = 1テロップ）:</label>
+  <textarea id="inputText" placeholder="ここに1行ずつテロップ文を入力してください"></textarea>
+
+  <button onclick="generateXML()">XMLを生成</button>
+  <button onclick="downloadXML()">XMLをダウンロード</button>
+  <button onclick="generateSRT()">SRTを生成</button>
+  <button onclick="downloadSRT()">SRTをダウンロード</button>
+
+  <h2>生成されたXML：</h2>
+  <textarea id="outputXML" readonly></textarea>
+
+  <h2>生成されたSRT：</h2>
+  <textarea id="outputSRT" readonly></textarea>
 
   <script>
-    function formatText() {
-      const text = document.getElementById('inputText').value.trim();
-      const maxLen = parseInt(document.getElementById('maxChars').value, 10);
-      const output = document.getElementById('output');
+    function escapeXML(text) {
+      return text.replace(/[<>&'"]/g, c => ({
+        '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;'
+      }[c]));
+    }
 
-      if (!text) {
-        output.textContent = 'テキストが空です。';
+    function secondsToTimecode(seconds) {
+      const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+      const min = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+      const sec = String(Math.floor(seconds % 60)).padStart(2, '0');
+      const ms = String(Math.floor((seconds % 1) * 1000)).padStart(3, '0');
+      return `${hrs}:${min}:${sec},${ms}`;
+    }
+
+    function generateXML() {
+      const lines = document.getElementById('inputText').value.split('\n').map(l => l.trim()).filter(l => l);
+      const fps = 30;
+      const durationSec = parseInt(document.getElementById('durationInput').value, 10) || 5;
+      const fontSize = parseInt(document.getElementById('fontSizeInput').value, 10) || 24;
+      const duration = durationSec * fps;
+
+      let output = `<?xml version="1.0" encoding="utf-8"?>\n<xmeml version="5">\n  <sequence id="video">\n    <name>txtconvert</name>\n    <duration>${lines.length * duration}</duration>\n    <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n    <media>\n      <video>\n        <format>\n          <samplecharacteristics>\n            <width>1920</width><height>1080</height>\n            <anamorphic>false</anamorphic>\n            <pixelaspectratio>square</pixelaspectratio>\n            <fielddominance>none</fielddominance>\n          </samplecharacteristics>\n        </format>\n        <track>`;
+
+      lines.forEach((text, i) => {
+        const start = i * duration;
+        const end = start + duration;
+        const safeText = escapeXML(text);
+        output += `\n          <generatoritem id="Outline Text${i + 1}">\n            <name>${safeText}</name>\n            <duration>${duration}</duration>\n            <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n            <start>${start}</start>\n            <end>${end}</end>\n            <enabled>true</enabled>\n            <alphatype>black</alphatype>\n            <masterclipid>Outline Text${i + 1}</masterclipid>\n            <effect>\n              <name>Outline Text</name>\n              <effectid>Outline Text</effectid>\n              <effectcategory>Text</effectcategory>\n              <effecttype>generator</effecttype>\n              <mediatype>video</mediatype>\n              <parameter><parameterid>str</parameterid><name>Text</name><value>${safeText}</value></parameter>\n              <parameter><parameterid>font</parameterid><name>Font</name><value>YuGothic-Bold</value></parameter>\n              <parameter><parameterid>size</parameterid><name>Size</name><value>${fontSize}</value></parameter>\n              <parameter><parameterid>align</parameterid><name>Alignment</name><value>2</value></parameter>\n              <parameter><parameterid>textcolor</parameterid><name>Text Color</name><value><alpha>255</alpha><red>255</red><green>255</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>linecolor</parameterid><name>Line Color</name><value><alpha>255</alpha><red>0</red><green>150</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>backopacity</parameterid><name>Back Opacity</name><value>50</value></parameter>\n              <parameter><parameterid>center</parameterid><name>Center</name><value><horiz>0</horiz><vert>0.43</vert></value></parameter>\n            </effect>\n            <sourcetrack><mediatype>video</mediatype></sourcetrack>\n          </generatoritem>`;
+      });
+
+      output += `\n        </track>\n      </video>\n    </media>\n  </sequence>\n</xmeml>`;
+      document.getElementById('outputXML').value = output;
+    }
+
+    function generateSRT() {
+      const rawLines = document.getElementById('inputText').value.split('\n');
+      const durationSec = parseInt(document.getElementById('durationInput').value, 10) || 5;
+      const groups = [];
+      let currentGroup = [];
+
+      rawLines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed === '') {
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup.join('\n'));
+            currentGroup = [];
+          }
+        } else {
+          currentGroup.push(trimmed);
+        }
+      });
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup.join('\n'));
+      }
+
+      let output = '';
+      groups.forEach((text, i) => {
+        const start = secondsToTimecode(i * durationSec);
+        const end = secondsToTimecode((i + 1) * durationSec);
+        output += `${i + 1}\n${start} --> ${end}\n${text}\n\n`;
+      });
+
+      document.getElementById('outputSRT').value = output.trim();
+    }
+
+    function downloadXML() {
+      const xml = document.getElementById('outputXML').value;
+      if (!xml.trim()) {
+        alert("先にXMLを生成してください。");
         return;
       }
-
-      const result = [];
-      const sentences = splitByPunctuation(text);
-
-      for (let sentence of sentences) {
-        while (sentence.length > maxLen) {
-          let breakIndex = findBreakPoint(sentence, maxLen);
-          if (breakIndex === -1) breakIndex = maxLen;
-          result.push(sentence.slice(0, breakIndex).trim());
-          sentence = sentence.slice(breakIndex).trim();
-        }
-        if (sentence.length > 0) result.push(sentence);
-      }
-
-      output.textContent = result.join('\n');
+      const blob = new Blob([xml], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'premiere_text.xml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
-    function splitByPunctuation(text) {
-      // . や 。 で改行（. を残す）
-      return text
-        .replace(/([。．.])/g, "$1\n")
-        .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-    }
-
-    function findBreakPoint(text, maxLen) {
-      const quoteRanges = findQuoteRanges(text);
-      const candidates = [];
-
-      for (let i = 0; i < maxLen; i++) {
-        const c = text[i];
-        if ((c === ' ' || c === ',' || c === '、') && !inQuote(i, quoteRanges)) {
-          candidates.push(i);
-        }
+    function downloadSRT() {
+      const srt = document.getElementById('outputSRT').value;
+      if (!srt.trim()) {
+        alert("先にSRTを生成してください。");
+        return;
       }
-
-      if (candidates.length === 0) return -1;
-
-      const ideal = Math.floor(maxLen / 2);
-      let best = candidates[0];
-      let minDiff = Math.abs(candidates[0] - ideal);
-
-      for (let i = 1; i < candidates.length; i++) {
-        const diff = Math.abs(candidates[i] - ideal);
-        if (diff < minDiff) {
-          best = candidates[i];
-          minDiff = diff;
-        }
-      }
-
-      // カンマや読点の直後で改行する
-      const charAtBreak = text[best];
-      if (charAtBreak === ',' || charAtBreak === '、') {
-        return best + 1;
-      }
-
-      return best;
-    }
-
-    function findQuoteRanges(text) {
-      const ranges = [];
-      let start = -1;
-
-      for (let i = 0; i < text.length; i++) {
-        if (text[i] === '"') {
-          if (start === -1) {
-            start = i;
-          } else {
-            ranges.push([start, i]);
-            start = -1;
-          }
-        }
-      }
-
-      return ranges;
-    }
-
-    function inQuote(index, ranges) {
-      return ranges.some(([start, end]) => index > start && index < end);
+      const blob = new Blob([srt], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'subtitles.srt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
-
 </body>
 </html>
