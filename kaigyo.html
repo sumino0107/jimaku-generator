@@ -1,134 +1,182 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Subtitle Line Breaker</title>
+  <meta charset="UTF-8">
+  <title>字幕用 自然改行ツール（意味の切れ目重視対応）</title>
   <style>
     body {
       font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f9f9f9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      padding: 20px;
+      max-width: 800px;
+      margin: 80px auto 20px auto;
+      text-align: center;
     }
+
+    textarea, input, button {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      font-size: 1rem;
+      display: block;
+    }
+
+    #output-container {
+      position: relative;
+      max-width: 600px;
+      margin: 20px auto 0 auto;
+      text-align: left;
+    }
+
+    #output {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      min-height: 100px;
+    }
+
+    #copyBtn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 0.9rem;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
     .logo {
       position: fixed;
       top: 10px;
       left: 10px;
       z-index: 1000;
     }
+
     .logo img {
       height: 40px;
       opacity: 0.8;
     }
-    h1 {
-      margin-top: 60px;
-    }
-    textarea {
-      width: 90%;
-      max-width: 800px;
-      height: 150px;
-      margin: 10px 0;
-      padding: 10px;
-      font-size: 16px;
-      line-height: 1.5;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    pre {
-      white-space: pre-wrap;
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 8px;
-      max-width: 800px;
-      width: 90%;
-      font-size: 16px;
-      position: relative;
-    }
-    .copy-button {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: #28a745;
-      border: none;
-      color: white;
-      padding: 5px 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    }
   </style>
 </head>
 <body>
+
   <div class="logo">
     <img src="logo.png" alt="ツールロゴ" />
   </div>
-  <h1>Subtitle Line Breaker</h1>
-  <textarea id="inputText" placeholder="Enter your text here..."></textarea>
-  <input type="number" id="maxLength" placeholder="Max characters per line" value="70" style="margin-bottom: 10px; padding: 5px; font-size: 16px; width: 200px;" />
-  <br />
+
+  <h1>字幕用 自然改行ツール（意味の切れ目重視対応）</h1>
+
+  <label>テキスト入力:</label>
+  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
+
+  <label>最大文字数（1行）:</label>
+  <input type="number" id="maxChars" value="70" min="10" />
+
   <button onclick="formatText()">整形する</button>
-  <pre id="outputText"><button class="copy-button" onclick="copyToClipboard()">Copy</button></pre>
+
+  <h2>整形後テキスト:</h2>
+  <div id="output-container">
+    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+    <div id="output"></div>
+  </div>
 
   <script>
     function formatText() {
-      const input = document.getElementById("inputText").value;
-      const maxLength = parseInt(document.getElementById("maxLength").value);
+      const text = document.getElementById('inputText').value.trim();
+      const maxLen = parseInt(document.getElementById('maxChars').value, 10);
+      const output = document.getElementById('output');
+
+      if (!text) {
+        output.textContent = 'テキストが空です。';
+        return;
+      }
 
       const result = [];
-      const sentences = input.match(/[^.!?。]+[.!?。]*/g) || [];
+      const sentences = splitByPunctuation(text);
 
-      sentences.forEach(sentence => {
-        sentence = sentence.trim();
-        if (!sentence) return;
+      for (let sentence of sentences) {
+        while (sentence.length > maxLen) {
+          let breakIndex = findBreakPoint(sentence, maxLen);
+          if (breakIndex === -1) breakIndex = maxLen;
+          result.push(sentence.slice(0, breakIndex).trim());
+          sentence = sentence.slice(breakIndex).trim();
+        }
+        if (sentence.length > 0) result.push(sentence);
+      }
 
-        const words = sentence.split(/(\s+)/).filter(w => w.length > 0);
-        let line = "";
+      output.textContent = result.join('\n');
+    }
 
-        for (let i = 0; i < words.length; i++) {
-          const word = words[i];
-          const testLine = line + word;
+    function splitByPunctuation(text) {
+      return text
+        .replace(/([。．.])/g, "$1\n")
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    }
 
-          // Skip breaking on ..., ...., 、、、, 。。。 etc
-          if (/\.{2,}|、{2,}|。{2,}/.test(word)) {
-            line += word;
-            continue;
-          }
+    function findBreakPoint(text, maxLen) {
+      const candidateScores = [];
+      const keywords = ['and', 'but', 'because', 'when', 'where', 'that', 'if'];
+      const lower = text.toLowerCase();
 
-          if (testLine.length > maxLength) {
-            if (line.trim()) result.push(line.trim());
-            line = word.trimStart();
-          } else {
-            line += word;
+      for (let i = 0; i < maxLen; i++) {
+        const c = text[i];
+        let score = 0;
+        if (c === ' ' || c === ',' || c === '、') {
+          score = (c === ',' || c === '、') ? 2 : 1;
+        }
+        for (const kw of keywords) {
+          if (lower.startsWith(kw, i + 1)) {
+            score = Math.max(score, 3);
           }
         }
-        if (line.trim()) result.push(line.trim());
-      });
+        if (score > 0) candidateScores.push({ index: i, score });
+      }
 
-      document.getElementById("outputText").innerText = result.join("\n");
+      if (candidateScores.length === 0) return -1;
+
+      const ideal = Math.floor(maxLen / 2);
+      let best = candidateScores[0];
+      let bestEval = evaluate(best, ideal);
+
+      for (let i = 1; i < candidateScores.length; i++) {
+        const cand = candidateScores[i];
+        const ev = evaluate(cand, ideal);
+        if (ev < bestEval) {
+          best = cand;
+          bestEval = ev;
+        }
+      }
+
+      const ch = text[best.index];
+      if (ch === ',' || ch === '、') {
+        return best.index + 1;
+      }
+
+      return best.index;
+    }
+
+    function evaluate(cand, ideal) {
+      return Math.abs(cand.index - ideal) - cand.score * 5;
     }
 
     function copyToClipboard() {
-      const text = document.getElementById("outputText").innerText;
+      const text = document.getElementById('output').textContent;
       navigator.clipboard.writeText(text).then(() => {
-        alert("Copied to clipboard!");
+        const btn = document.getElementById('copyBtn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1000);
       });
     }
   </script>
+
 </body>
 </html>
