@@ -59,11 +59,12 @@
   <textarea id="outputSRT" readonly></textarea>
 
   <script>
-    function escapeXML(text) {
-      return text.replace(/[<>&'"]/g, c => ({
-        '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;'
-      }[c]));
-    }
+  function escapeXML(text) {
+  return text.replace(/[<>&"]/g, c => ({
+    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;'
+  }[c]));
+}
+
 
     function secondsToTimecode(seconds) {
       const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
