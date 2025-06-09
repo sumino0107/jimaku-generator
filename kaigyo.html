@@ -11,20 +11,12 @@
      margin: 80px auto 20px auto; /* 上に余白追加＆中央寄せ */
      text-align: center; /* 子要素の中央寄せ（※textareaは除外） */
     }
-    textarea, input, button {
-      width: 100%;
-      margin-top: 10px;
-      font-size: 1rem;
-    }
-    #output {
-      white-space: pre-wrap;
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background-color: #f9f9f9;
-    }
-    h1 {
-      font-size: 1.5rem;
+textarea, input, button {
+  width: 100%;
+  max-width: 600px;
+  margin: 10px auto;
+  font-size: 1rem;
+  display: block;  /* 中央寄せのために block にする */
     }
 
 
