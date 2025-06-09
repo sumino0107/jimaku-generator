@@ -73,27 +73,47 @@
       return `${hrs}:${min}:${sec},${ms}`;
     }
 
-    function generateXML() {
-      const lines = document.getElementById('inputText').value.split('\n').map(l => l.trim()).filter(l => l);
-      const fps = 30;
-      const durationSec = parseInt(document.getElementById('durationInput').value, 10) || 5;
-      const fontSize = parseInt(document.getElementById('fontSizeInput').value, 10) || 24;
-      const duration = durationSec * fps;
 
-      let output = `<?xml version="1.0" encoding="utf-8"?>\n<xmeml version="5">\n  <sequence id="video">\n    <name>txtconvert</name>\n    <duration>${lines.length * duration}</duration>\n    <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n    <media>\n      <video>\n        <format>\n          <samplecharacteristics>\n            <width>1920</width><height>1080</height>\n            <anamorphic>false</anamorphic>\n            <pixelaspectratio>square</pixelaspectratio>\n            <fielddominance>none</fielddominance>\n          </samplecharacteristics>\n        </format>\n        <track>`;
 
-      lines.forEach((text, i) => {
-        const start = i * duration;
-        const end = start + duration;
-        const safeText = escapeXML(text);
-        output += `\n          <generatoritem id="Outline Text${i + 1}">\n            <name>${safeText}</name>\n            <duration>${duration}</duration>\n            <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n            <start>${start}</start>\n            <end>${end}</end>\n            <enabled>true</enabled>\n            <alphatype>black</alphatype>\n            <masterclipid>Outline Text${i + 1}</masterclipid>\n            <effect>\n              <name>Outline Text</name>\n              <effectid>Outline Text</effectid>\n              <effectcategory>Text</effectcategory>\n              <effecttype>generator</effecttype>\n              <mediatype>video</mediatype>\n              <parameter><parameterid>str</parameterid><name>Text</name><value>${safeText}</value></parameter>\n              <parameter><parameterid>font</parameterid><name>Font</name><value>YuGothic-Bold</value></parameter>\n              <parameter><parameterid>size</parameterid><name>Size</name><value>${fontSize}</value></parameter>\n              <parameter><parameterid>align</parameterid><name>Alignment</name><value>2</value></parameter>\n              <parameter><parameterid>textcolor</parameterid><name>Text Color</name><value><alpha>255</alpha><red>255</red><green>255</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>linecolor</parameterid><name>Line Color</name><value><alpha>255</alpha><red>0</red><green>150</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>backopacity</parameterid><name>Back Opacity</name><value>50</value></parameter>\n              <parameter><parameterid>center</parameterid><name>Center</name><value><horiz>0</horiz><vert>0.43</vert></value></parameter>\n            </effect>\n            <sourcetrack><mediatype>video</mediatype></sourcetrack>\n          </generatoritem>`;
-      });
 
-      output += `\n        </track>\n      </video>\n    </media>\n  </sequence>\n</xmeml>`;
-      document.getElementById('outputXML').value = output;
-    }
 
-    function generateSRT() {
+
+
+
+function generateXML() {
+  const lines = document.getElementById('inputText').value
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l);
+  const fps = 30;
+  const durationSec = parseInt(document.getElementById('durationInput').value, 10) || 5;
+  const duration = durationSec * fps;
+
+  let output = `<?xml version="1.0" encoding="utf-8"?>\n<xmeml version="5">\n  <sequence id="video">\n    <name>txtconvert</name>\n    <duration>${lines.length * duration}</duration>\n    <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n    <media>\n      <video>\n        <format>\n          <samplecharacteristics>\n            <width>1920</width><height>1080</height>\n            <anamorphic>false</anamorphic>\n            <pixelaspectratio>square</pixelaspectratio>\n            <fielddominance>none</fielddominance>\n          </samplecharacteristics>\n        </format>\n        <track>`;
+
+  lines.forEach((rawText, i) => {
+    let text = rawText.replace(/&/g, '＆').replace(/"/g, '”');
+    const safeText = escapeXML(text);
+    const start = i * duration;
+    const end = start + duration;
+
+    output += `\n          <generatoritem id="Outline Text${i + 1}">\n            <name>${safeText}</name>\n            <duration>${duration}</duration>\n            <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n            <start>${start}</start>\n            <end>${end}</end>\n            <enabled>true</enabled>\n            <alphatype>black</alphatype>\n            <masterclipid>Outline Text${i + 1}</masterclipid>\n            <effect>\n              <name>Outline Text</name>\n              <effectid>Outline Text</effectid>\n              <effectcategory>Text</effectcategory>\n              <effecttype>generator</effecttype>\n              <mediatype>video</mediatype>\n              <parameter><parameterid>str</parameterid><name>Text</name><value>${safeText}</value></parameter>\n              <parameter><parameterid>font</parameterid><name>Font</name><value>YuGothic-Bold</value></parameter>\n              <parameter><parameterid>size</parameterid><name>Size</name><value>24</value></parameter>\n              <parameter><parameterid>align</parameterid><name>Alignment</name><value>2</value></parameter>\n              <parameter><parameterid>textcolor</parameterid><name>Text Color</name><value><alpha>255</alpha><red>255</red><green>255</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>linecolor</parameterid><name>Line Color</name><value><alpha>255</alpha><red>0</red><green>150</green><blue>255</blue></value></parameter>\n              <parameter><parameterid>backopacity</parameterid><name>Back Opacity</name><value>50</value></parameter>\n              <parameter><parameterid>center</parameterid><name>Center</name><value><horiz>0</horiz><vert>0.43</vert></value></parameter>\n            </effect>\n            <sourcetrack><mediatype>video</mediatype></sourcetrack>\n          </generatoritem>`;
+  });
+
+  output += `\n        </track>\n      </video>\n    </media>\n  </sequence>\n</xmeml>`;
+  document.getElementById('outputXML').value = output;
+}
+
+  
+
+
+
+
+
+
+
+
+  function generateSRT() {
       const rawLines = document.getElementById('inputText').value.split('\n');
       const durationSec = parseInt(document.getElementById('durationInput').value, 10) || 5;
       const groups = [];
@@ -124,7 +144,9 @@
       document.getElementById('outputSRT').value = output.trim();
     }
 
-    function downloadXML() {
+
+
+   function downloadXML() {
       const xml = document.getElementById('outputXML').value;
       if (!xml.trim()) {
         alert("先にXMLを生成してください。");
