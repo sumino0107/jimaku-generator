@@ -44,8 +44,8 @@
   <label for="fontSizeInput">フォントサイズ：</label>
   <input type="number" id="fontSizeInput" value="24" min="1" max="200"> px
 
-  <label for="inputText">テロップ本文（1行 = 1テロップ）:</label>
-  <textarea id="inputText" placeholder="ここに1行ずつテロップ文を入力してください"></textarea>
+  <label for="inputText">テロップ本文:(XML1行 = 1テロップ)(SRTは空白行ごとに1テロップ）<br>半角&は全角＆に変換されます</label>
+  <textarea id="inputText" placeholder="ここにテキストを入力してください"></textarea>
 
   <button onclick="generateXML()">XMLを生成</button>
   <button onclick="downloadXML()">XMLをダウンロード</button>
