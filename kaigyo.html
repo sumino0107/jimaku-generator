@@ -111,13 +111,61 @@
       output.textContent = result.join('\n');
     }
 
-    function splitByPunctuation(text) {
-      return text
-        .replace(/([。．.])/g, "$1\n")
-        .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+   function splitByPunctuation(text) {
+  // まず引用符の範囲を検出し、その範囲内は置換しないようにする
+  
+  const quoteChars = ['"', '”'];
+  const quoteRanges = []; // {start: , end: }
+  let insideQuote = false;
+  let quoteStart = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (quoteChars.includes(text[i])) {
+      if (!insideQuote) {
+        insideQuote = true;
+        quoteStart = i;
+      } else {
+        insideQuote = false;
+        quoteRanges.push({ start: quoteStart, end: i });
+        quoteStart = -1;
+      }
     }
+  }
+
+  // 句点を改行に置換。ただし連続句読点や引用符内はスキップする
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    // 連続句読点の判定（3文字以上の.、、、。）
+    const isConsecutivePunct =
+      (char === '.' && text.slice(i, i + 3) === '...') ||
+      (char === '、' && text.slice(i, i + 3) === '、、、') ||
+      (char === '。' && text.slice(i, i + 3) === '。。。');
+
+    // その場で連続句読点はまるごと出力してスキップ
+    if (isConsecutivePunct) {
+      result += text.slice(i, i + 3);
+      i += 2; // 3文字進める(ループのi++含め)
+      continue;
+    }
+
+    // 引用符内かどうか判定
+    const inQuote = quoteRanges.some(r => i >= r.start && i <= r.end);
+
+    // 引用符内なら改行しない、連続句読点でもない句点なら改行する
+    if (!inQuote && (char === '。' || char === '．' || char === '.')) {
+      result += char + '\n';
+    } else {
+      result += char;
+    }
+  }
+
+  return result
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
 
     function findBreakPoint(text, maxLen) {
       const candidateScores = [];
