@@ -2,55 +2,76 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>字幕用 自然改行ツール</title>
+  <title>字幕用 自然改行ツール（意味の切れ目重視対応）</title>
   <style>
     body {
       font-family: sans-serif;
       padding: 20px;
       max-width: 800px;
-      margin: auto;
+      margin: 80px auto 20px auto;
+      text-align: center;
     }
+
     textarea, input, button {
       width: 100%;
-      margin-top: 10px;
+      max-width: 600px;
+      margin: 10px auto;
       font-size: 1rem;
+      display: block;
     }
+
+    #output-container {
+      position: relative;
+      max-width: 600px;
+      margin: 20px auto 0 auto;
+      text-align: left;
+    }
+
     #output {
       white-space: pre-wrap;
-      margin-top: 20px;
       border: 1px solid #ccc;
       padding: 10px;
       background-color: #f9f9f9;
+      font-family: monospace;
+      min-height: 100px;
     }
+
+    #copyBtn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 0.9rem;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
     h1 {
       font-size: 1.5rem;
     }
 
+    .logo {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
 
-.logo {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 1000;
-}
-.logo img {
-  height: 40px;
-  opacity: 0.8;
-}
-
-
+    .logo img {
+      height: 40px;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
 
-<div class="logo">
-  <img src="logo.png" alt="ツールロゴ" />
+  <div class="logo">
+    <img src="logo.png" alt="ツールロゴ" />
   </div>
 
-  <h1>字幕用 自然改行ツール</h1>
+  <h1>字幕用 自然改行ツール（意味の切れ目重視対応）</h1>
 
   <label>テキスト入力:</label>
-  <textarea id="inputText" rows="6" placeholder="字幕用に改行したい文章を入力してください..."></textarea>
+  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
 
   <label>最大文字数（1行）:</label>
   <input type="number" id="maxChars" value="70" min="10" />
@@ -58,7 +79,10 @@
   <button onclick="formatText()">整形する</button>
 
   <h2>整形後テキスト:</h2>
-  <div id="output"></div>
+  <div id="output-container">
+    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+    <div id="output"></div>
+  </div>
 
   <script>
     function formatText() {
@@ -88,7 +112,6 @@
     }
 
     function splitByPunctuation(text) {
-      // . や 。 で改行（. を残す）
       return text
         .replace(/([。．.])/g, "$1\n")
         .split('\n')
@@ -97,59 +120,61 @@
     }
 
     function findBreakPoint(text, maxLen) {
-      const quoteRanges = findQuoteRanges(text);
-      const candidates = [];
+      const candidateScores = [];
+      const keywords = ['and', 'but', 'because', 'when', 'where', 'that', 'if'];
+      const lower = text.toLowerCase();
 
       for (let i = 0; i < maxLen; i++) {
         const c = text[i];
-        if ((c === ' ' || c === ',' || c === '、') && !inQuote(i, quoteRanges)) {
-          candidates.push(i);
+        let score = 0;
+        if (c === ' ' || c === ',' || c === '、') {
+          score = (c === ',' || c === '、') ? 2 : 1;
         }
-      }
-
-      if (candidates.length === 0) return -1;
-
-      const ideal = Math.floor(maxLen / 2);
-      let best = candidates[0];
-      let minDiff = Math.abs(candidates[0] - ideal);
-
-      for (let i = 1; i < candidates.length; i++) {
-        const diff = Math.abs(candidates[i] - ideal);
-        if (diff < minDiff) {
-          best = candidates[i];
-          minDiff = diff;
-        }
-      }
-
-      // カンマや読点の直後で改行する
-      const charAtBreak = text[best];
-      if (charAtBreak === ',' || charAtBreak === '、') {
-        return best + 1;
-      }
-
-      return best;
-    }
-
-    function findQuoteRanges(text) {
-      const ranges = [];
-      let start = -1;
-
-      for (let i = 0; i < text.length; i++) {
-        if (text[i] === '"') {
-          if (start === -1) {
-            start = i;
-          } else {
-            ranges.push([start, i]);
-            start = -1;
+        for (const kw of keywords) {
+          if (lower.startsWith(kw, i + 1)) {
+            score = Math.max(score, 3);
           }
         }
+        if (score > 0) candidateScores.push({ index: i, score });
       }
 
-      return ranges;
+      if (candidateScores.length === 0) return -1;
+
+      const ideal = Math.floor(maxLen / 2);
+      let best = candidateScores[0];
+      let bestEval = evaluate(best, ideal);
+
+      for (let i = 1; i < candidateScores.length; i++) {
+        const cand = candidateScores[i];
+        const ev = evaluate(cand, ideal);
+        if (ev < bestEval) {
+          best = cand;
+          bestEval = ev;
+        }
+      }
+
+      const ch = text[best.index];
+      if (ch === ',' || ch === '、') {
+        return best.index + 1;
+      }
+
+      return best.index;
     }
 
-    function inQuote(index, ranges) {
-      return ranges.some(([start, end]) => index > start && index < end);
+    function evaluate(cand, ideal) {
+      return Math.abs(cand.index - ideal) - cand.score * 5;
+    }
+
+    function copyToClipboard() {
+      const text = document.getElementById('output').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1000);
+      });
     }
   </script>
 
