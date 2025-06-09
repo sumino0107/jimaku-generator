@@ -41,18 +41,18 @@
   <label for="durationInput">各テロップの表示秒数：</label>
   <input type="number" id="durationInput" value="5" min="1" />
 
-  <label for="fontSizeInput">フォントサイズ(px)：</label>
-  <input type="number" id="fontSizeInput" value="24" min="1" max="200"> 
+  <label for="fontSizeInput">フォントサイズ：</label>
+  <input type="number" id="fontSizeInput" value="24" min="1" max="200"> px
 
-  <label for="inputText">テロップ本文（XMLは1行 = 1テロップ、SRTは空白行ごとに1テロップ）:</label>
-  <textarea id="inputText" placeholder="ここに文章を入力してください"></textarea>
+  <label for="inputText">テロップ本文（1行 = 1テロップ）:</label>
+  <textarea id="inputText" placeholder="ここに1行ずつテロップ文を入力してください"></textarea>
 
   <button onclick="generateXML()">XMLを生成</button>
   <button onclick="downloadXML()">XMLをダウンロード</button>
   <button onclick="generateSRT()">SRTを生成</button>
   <button onclick="downloadSRT()">SRTをダウンロード</button>
 
-  <h2>生成されたXML：</h2>(半角の&は全角に変換されます）<br>
+  <h2>生成されたXML：</h2>
   <textarea id="outputXML" readonly></textarea>
 
   <h2>生成されたSRT：</h2>
@@ -83,7 +83,6 @@
       let output = `<?xml version="1.0" encoding="utf-8"?>\n<xmeml version="5">\n  <sequence id="video">\n    <name>txtconvert</name>\n    <duration>${lines.length * duration}</duration>\n    <rate><timebase>${fps}</timebase><ntsc>false</ntsc></rate>\n    <media>\n      <video>\n        <format>\n          <samplecharacteristics>\n            <width>1920</width><height>1080</height>\n            <anamorphic>false</anamorphic>\n            <pixelaspectratio>square</pixelaspectratio>\n            <fielddominance>none</fielddominance>\n          </samplecharacteristics>\n        </format>\n        <track>`;
 
       lines.forEach((text, i) => {
-        text = text.replace(/&/g, '＆');
         const start = i * duration;
         const end = start + duration;
         const safeText = escapeXML(text);
