@@ -2,47 +2,144 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>字幕用 自然改行ツール（意味の切れ目重視対応）</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      max-width: 800px;
-      margin: 80px auto 20px auto; /* 上にロゴ分のスペース */
-      text-align: center;
+  <title>字幕用 自然改行ツール（引用符対応）</title>
+ <style>
+    body { font-family: sans-serif; margin: 2em auto; max-width: 800px; background: #f9f9f9; padding: 1em; }
+    textarea, input { width: 100%; font-family: monospace; margin-bottom: 1em; }
+    textarea { height: 200px; }
+    button { padding: 0.5em 1em; font-size: 1em; margin-right: 0.5em; }
+    label { font-weight: bold; display: block; margin-top: 1em; }
+
+
+.logo {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+}
+.logo img {
+  height: 40px;
+  opacity: 0.8;
+}
+
+
+
+
+
+  </style>
+</head>
+<body>
+<div class="logo">
+  <img src="logo.png" alt="ツールロゴ" />
+</div>
+
+
+
+  <h1>字幕用 自然改行ツール（引用符対応）</h1>
+
+  <label>テキスト入力:</label>
+  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
+
+  <label>最大文字数（1行）:</label>
+  <input type="number" id="maxChars" value="70" min="10" />
+
+  <button onclick="formatText()">整形する</button>
+
+  <h2>整形後テキスト:</h2>
+  <div id="output"></div>
+
+  <script>
+    function formatText() {
+      const text = document.getElementById('inputText').value.trim();
+      const maxLen = parseInt(document.getElementById('maxChars').value, 10);
+      const output = document.getElementById('output');
+
+      if (!text) {
+        output.textContent = 'テキストが空です。';
+        return;
+      }
+
+      const result = [];
+      const sentences = splitByPunctuation(text);
+
+      for (let sentence of sentences) {
+        while (sentence.length > maxLen) {
+          let breakIndex = findBreakPoint(sentence, maxLen);
+          if (breakIndex === -1) breakIndex = maxLen;
+          result.push(sentence.slice(0, breakIndex).trim());
+          sentence = sentence.slice(breakIndex).trim();
+        }
+        if (sentence.length > 0) result.push(sentence);
+      }
+
+      output.textContent = result.join('\n');
     }
 
-    textarea, input, button {
-      width: 100%;
-      max-width: 600px;
-      margin: 10px auto;
-      font-size: 1rem;
-      display: block;
+    function splitByPunctuation(text) {
+      // . や 。 で改行（. を残す）
+      return text
+        .replace(/([。．.])/g, "$1\n")
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
     }
 
-    #output {
-      white-space: pre-wrap;
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background-color: #f9f9f9;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: left;
+    function findBreakPoint(text, maxLen) {
+      const quoteRanges = findQuoteRanges(text);
+      const candidates = [];
+
+      for (let i = 0; i < maxLen; i++) {
+        const c = text[i];
+        if ((c === ' ' || c === ',' || c === '、') && !inQuote(i, quoteRanges)) {
+          candidates.push(i);
+        }
+      }
+
+      if (candidates.length === 0) return -1;
+
+      const ideal = Math.floor(maxLen / 2);
+      let best = candidates[0];
+      let minDiff = Math.abs(candidates[0] - ideal);
+
+      for (let i = 1; i < candidates.length; i++) {
+        const diff = Math.abs(candidates[i] - ideal);
+        if (diff < minDiff) {
+          best = candidates[i];
+          minDiff = diff;
+        }
+      }
+
+      // カンマや読点の直後で改行する
+      const charAtBreak = text[best];
+      if (charAtBreak === ',' || charAtBreak === '、') {
+        return best + 1;
+      }
+
+      return best;
     }
 
-    h1 {
-      font-size: 1.5rem;
+    function findQuoteRanges(text) {
+      const ranges = [];
+      let start = -1;
+
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === '"') {
+          if (start === -1) {
+            start = i;
+          } else {
+            ranges.push([start, i]);
+            start = -1;
+          }
+        }
+      }
+
+      return ranges;
     }
 
-    .logo {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 1000;
+    function inQuote(index, ranges) {
+      return ranges.some(([start, end]) => index > start && index < end);
     }
+  </script>
 
-    .logo img {
-      height: 40px;
-      opacity: 0.8;
+</body>
+</html>
