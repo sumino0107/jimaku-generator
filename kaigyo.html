@@ -7,10 +7,14 @@
   <style>
     body {
       font-family: sans-serif;
-      padding: 20px;
-      max-width: 800px;
-      margin: 80px auto 20px auto;
-      text-align: center;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
     }
     .logo {
       position: fixed;
@@ -22,34 +26,51 @@
       height: 40px;
       opacity: 0.8;
     }
-    textarea, input, button {
-      width: 100%;
-      max-width: 600px;
-      margin: 10px auto;
-      font-size: 1rem;
-      display: block;
+    h1 {
+      margin-top: 60px;
     }
-    #output-container {
-      position: relative;
-      max-width: 600px;
-      margin: 20px auto 0 auto;
-      text-align: left;
-    }
-    #outputText {
-      white-space: pre-wrap;
-      border: 1px solid #ccc;
+    textarea {
+      width: 90%;
+      max-width: 800px;
+      height: 150px;
+      margin: 10px 0;
       padding: 10px;
-      background-color: #f9f9f9;
-      font-family: monospace;
-      min-height: 100px;
+      font-size: 16px;
+      line-height: 1.5;
+      border: 1px solid #ccc;
+      border-radius: 8px;
     }
-    #copyBtn {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      font-size: 0.9rem;
-      padding: 5px 10px;
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
       cursor: pointer;
+      margin-bottom: 20px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 8px;
+      max-width: 800px;
+      width: 90%;
+      font-size: 16px;
+      position: relative;
+    }
+    .copy-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #28a745;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -58,87 +79,74 @@
     <img src="logo.png" alt="ツールロゴ" />
   </div>
   <h1>Subtitle Line Breaker</h1>
-
   <textarea id="inputText" placeholder="Enter your text here..."></textarea>
-  <input type="number" id="maxLength" placeholder="Max characters per line" value="70" />
+  <input type="number" id="maxLength" placeholder="Max characters per line" value="70" style="margin-bottom: 10px; padding: 5px; font-size: 16px; width: 200px;" />
+  <br />
   <button onclick="formatText()">整形する</button>
-
-  <div id="output-container">
-    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
-    <pre id="outputText"></pre>
-  </div>
+  <pre id="outputText"><button class="copy-button" onclick="copyToClipboard()">Copy</button></pre>
 
   <script>
-    function formatText() {
-      const input = document.getElementById("inputText").value;
-      const maxLength = parseInt(document.getElementById("maxLength").value);
-      const result = [];
-      const quoteRanges = findQuoteRanges(input);
-      const sentences = input.match(/[^.!?。]+[.!?。]*/g) || [];
+   
+function formatText() {
+  const input = document.getElementById("inputText").value;
+  const maxLength = parseInt(document.getElementById("maxLength").value);
 
-      let position = 0;
-      sentences.forEach(sentence => {
-        sentence = sentence.trim();
-        if (!sentence) return;
+  const result = [];
+  const sentences = input.match(/[^.!?。]+[.!?。]*/g) || [];
 
-        const words = sentence.split(/(\s+)/).filter(w => w.length > 0);
-        let line = "";
+  sentences.forEach(sentence => {
+    sentence = sentence.trim();
+    if (!sentence) return;
 
-        for (let i = 0; i < words.length; i++) {
-          const word = words[i];
-          const wordStart = position;
-          const wordEnd = position + word.length;
-          position = wordEnd;
+    const words = sentence.split(/(\s+)/).filter(w => w.length > 0);
 
-          const inQuotes = quoteRanges.some(([start, end]) => wordStart >= start && wordEnd <= end);
+    let line = "";
+    let insideQuotes = false; // クォーテーション内フラグ
 
-          // 省略記号や読点連続、引用符内の.を改行対象外にする
-          const skipBreak = inQuotes || /[.,。、]{2,}/.test(word);
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
 
-          const testLine = line + word;
-          if (!skipBreak && testLine.length > maxLength) {
-            if (line.trim()) result.push(line.trim());
-            line = word.trimStart();
-          } else {
-            line += word;
-          }
-        }
-
-        if (line.trim()) result.push(line.trim());
-      });
-
-      document.getElementById("outputText").innerText = result.join("\n");
-    }
-
-    function findQuoteRanges(text) {
-      const ranges = [];
-      let inQuote = false;
-      let start = -1;
-
-      for (let i = 0; i < text.length; i++) {
-        if (text[i] === '"' || text[i] === '”' || text[i] === '“') {
-          if (!inQuote) {
-            inQuote = true;
-            start = i;
-          } else {
-            inQuote = false;
-            ranges.push([start, i]);
-          }
+      // クォーテーションの開始・終了を検知
+      // 半角ダブルクォーテーション " と 全角ダブルクォーテーション ”
+      const quotes = ['"', '”'];
+      for (const q of quotes) {
+        // wordの中にクォーテーションがあれば状態を反転
+        // ただしword内に複数あれば回数分反転する
+        let count = (word.split(q).length - 1);
+        if (count % 2 === 1) {
+          insideQuotes = !insideQuotes;
         }
       }
 
-      return ranges;
+      // 連続句読点の判定
+      const isConsecutivePunct = /\.{2,}|、{2,}|。{2,}/.test(word);
+
+      // クォーテーション内は改行判定しない（例：ピリオドがあっても改行しない）
+      // 連続句読点も改行しない
+
+      // 改行判定するのは、insideQuotes==falseかつ連続句読点でない場合のみ
+      const testLine = line + word;
+      if (!insideQuotes && !isConsecutivePunct && testLine.length > maxLength) {
+        if (line.trim()) result.push(line.trim());
+        line = word.trimStart();
+      } else {
+        line += word;
+      }
     }
+
+    if (line.trim()) result.push(line.trim());
+  });
+
+  document.getElementById("outputText").innerText = result.join("\n");
+}
+
+
+
 
     function copyToClipboard() {
       const text = document.getElementById("outputText").innerText;
       navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById("copyBtn");
-        const original = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => {
-          btn.textContent = original;
-        }, 1000);
+        alert("Copied to clipboard!");
       });
     }
   </script>
