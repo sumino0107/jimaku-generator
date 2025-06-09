@@ -7,14 +7,10 @@
   <style>
     body {
       font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f9f9f9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      padding: 20px;
+      max-width: 800px;
+      margin: 80px auto 20px auto;
+      text-align: center;
     }
     .logo {
       position: fixed;
@@ -26,51 +22,34 @@
       height: 40px;
       opacity: 0.8;
     }
-    h1 {
-      margin-top: 60px;
+    textarea, input, button {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      font-size: 1rem;
+      display: block;
     }
-    textarea {
-      width: 90%;
-      max-width: 800px;
-      height: 150px;
-      margin: 10px 0;
-      padding: 10px;
-      font-size: 16px;
-      line-height: 1.5;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    pre {
-      white-space: pre-wrap;
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 8px;
-      max-width: 800px;
-      width: 90%;
-      font-size: 16px;
+    #output-container {
       position: relative;
+      max-width: 600px;
+      margin: 20px auto 0 auto;
+      text-align: left;
     }
-    .copy-button {
+    #outputText {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      min-height: 100px;
+    }
+    #copyBtn {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: #28a745;
-      border: none;
-      color: white;
+      top: 5px;
+      right: 5px;
+      font-size: 0.9rem;
       padding: 5px 10px;
-      border-radius: 5px;
       cursor: pointer;
-      font-size: 14px;
     }
   </style>
 </head>
@@ -79,21 +58,25 @@
     <img src="logo.png" alt="ツールロゴ" />
   </div>
   <h1>Subtitle Line Breaker</h1>
+
   <textarea id="inputText" placeholder="Enter your text here..."></textarea>
-  <input type="number" id="maxLength" placeholder="Max characters per line" value="70" style="margin-bottom: 10px; padding: 5px; font-size: 16px; width: 200px;" />
-  <br />
+  <input type="number" id="maxLength" placeholder="Max characters per line" value="70" />
   <button onclick="formatText()">整形する</button>
-  <pre id="outputText"><button class="copy-button" onclick="copyToClipboard()">Copy</button></pre>
+
+  <div id="output-container">
+    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+    <pre id="outputText"></pre>
+  </div>
 
   <script>
     function formatText() {
       const input = document.getElementById("inputText").value;
       const maxLength = parseInt(document.getElementById("maxLength").value);
-
       const result = [];
       const quoteRanges = findQuoteRanges(input);
       const sentences = input.match(/[^.!?。]+[.!?。]*/g) || [];
 
+      let position = 0;
       sentences.forEach(sentence => {
         sentence = sentence.trim();
         if (!sentence) return;
@@ -101,28 +84,26 @@
         const words = sentence.split(/(\s+)/).filter(w => w.length > 0);
         let line = "";
 
-        for (let i = 0, pos = 0; i < words.length; i++) {
+        for (let i = 0; i < words.length; i++) {
           const word = words[i];
-          const testLine = line + word;
+          const wordStart = position;
+          const wordEnd = position + word.length;
+          position = wordEnd;
 
-          const wordStart = pos;
-          const wordEnd = pos + word.length;
           const inQuotes = quoteRanges.some(([start, end]) => wordStart >= start && wordEnd <= end);
 
-          pos = wordEnd;
+          // 省略記号や読点連続、引用符内の.を改行対象外にする
+          const skipBreak = inQuotes || /[.,。、]{2,}/.test(word);
 
-          if (inQuotes || /\.{2,}|、{2,}|。{2,}/.test(word)) {
-            line += word;
-            continue;
-          }
-
-          if (testLine.length > maxLength) {
+          const testLine = line + word;
+          if (!skipBreak && testLine.length > maxLength) {
             if (line.trim()) result.push(line.trim());
             line = word.trimStart();
           } else {
             line += word;
           }
         }
+
         if (line.trim()) result.push(line.trim());
       });
 
@@ -131,25 +112,33 @@
 
     function findQuoteRanges(text) {
       const ranges = [];
-      const quoteStack = [];
+      let inQuote = false;
+      let start = -1;
 
       for (let i = 0; i < text.length; i++) {
-        if (text[i] === '"' || text[i] === '”') {
-          if (quoteStack.length && quoteStack[quoteStack.length - 1].char === text[i]) {
-            const start = quoteStack.pop().index;
-            ranges.push([start, i]);
+        if (text[i] === '"' || text[i] === '”' || text[i] === '“') {
+          if (!inQuote) {
+            inQuote = true;
+            start = i;
           } else {
-            quoteStack.push({ char: text[i], index: i });
+            inQuote = false;
+            ranges.push([start, i]);
           }
         }
       }
+
       return ranges;
     }
 
     function copyToClipboard() {
       const text = document.getElementById("outputText").innerText;
       navigator.clipboard.writeText(text).then(() => {
-        alert("Copied to clipboard!");
+        const btn = document.getElementById("copyBtn");
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1000);
       });
     }
   </script>
