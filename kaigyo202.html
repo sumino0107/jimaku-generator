@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
-<!--ver2.02-->
+<!--ver2.01-->
 <head>
   <meta charset="UTF-8">
   <title>字幕用 自然改行ツール（意味の切れ目重視対応）</title>
@@ -86,7 +86,7 @@
   </div>
 
   <script>
-   function formatText() {
+    function formatText() {
   const text = document.getElementById('inputText').value.trim();
   const maxLen = parseInt(document.getElementById('maxChars').value, 10);
   const output = document.getElementById('output');
@@ -103,9 +103,15 @@
     while (sentence.length > maxLen) {
       let breakIndex = findBreakPoint(sentence, maxLen);
 
-      // ▼ 単語や語の途中で切れそうな場合、後ろにスライド
+      if (breakIndex === -1) {
+        // 改行候補がなければ残り全部を1行として追加
+        result.push(sentence);
+        sentence = '';
+        break;
+      }
+
+      // 語や単語の途中で切れていないかを確認し、必要なら後ろにスライド
       if (breakIndex > 0 && breakIndex < sentence.length) {
-        // 英文：次の文字が英単語の途中ならスライド
         if (isEnglish(sentence)) {
           while (
             breakIndex < sentence.length &&
@@ -115,7 +121,6 @@
             breakIndex++;
           }
         } else {
-          // 日本語：次がひらがな/カタカナ/漢字ならスライド
           while (
             breakIndex < sentence.length &&
             /[ぁ-んァ-ヶ一-龠々]/.test(sentence[breakIndex])
@@ -125,21 +130,16 @@
         }
       }
 
-      result.push(sentence.slice(0, breakIndex).trim());
-      sentence = sentence.slice(breakIndex).trim();
+      result.push(sentence.slice(0, breakIndex));
+      sentence = sentence.slice(breakIndex).trimStart();
     }
+
     if (sentence.length > 0) result.push(sentence);
   }
 
   output.textContent = result.join('\n');
 }
 
-// 英文かどうか簡易判定（1行内にa-zが多ければ英語とする）
-function isEnglish(str) {
-  const en = (str.match(/[a-zA-Z]/g) || []).length;
-  const jp = (str.match(/[\u3000-\u30ff\u4e00-\u9faf]/g) || []).length;
-  return en > jp;
-}
 
    function splitByPunctuation(text) {
   // まず引用符の範囲を検出し、その範囲内は置換しないようにする
