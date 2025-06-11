@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<!-- ver2.06 - 日本語/英語 文単位＋自然な改行優先順付き改良版 -->
+<head>
+  <meta charset="UTF-8">
+  <title>字幕用 自然改行ツール（ver2.06 日本語・英語対応）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 80px auto 20px auto;
+      text-align: center;
+    }
+    textarea, input, button {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      font-size: 1rem;
+      display: block;
+    }
+    #output-container {
+      position: relative;
+      max-width: 600px;
+      margin: 20px auto 0 auto;
+      text-align: left;
+    }
+    #output {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      min-height: 100px;
+    }
+    #copyBtn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 0.9rem;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>字幕用 自然改行ツール（ver2.06）</h1>
+  <label>テキスト入力:</label>
+  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
+  <label>最大文字数（1行）:</label>
+  <input type="number" id="maxChars" value="70" min="10" />
+  <button onclick="formatText()">整形する</button>
+  <h2>整形後テキスト:</h2>
+  <div id="output-container">
+    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    function formatText() {
+      const text = document.getElementById('inputText').value.trim();
+      const maxLen = parseInt(document.getElementById('maxChars').value, 10);
+      const output = document.getElementById('output');
+      if (!text) {
+        output.textContent = 'テキストが空です。';
+        return;
+      }
+      const result = isJapanese(text)
+        ? formatJapaneseText(text, maxLen)
+        : formatEnglishText(text, maxLen);
+      output.textContent = result.join('\n');
+    }
+
+    function isJapanese(str) {
+      return /[一-龠ぁ-んァ-ン]/.test(str);
+    }
+
+    function formatJapaneseText(text, maxLen) {
+      const result = [];
+      const sentences = text.split(/(?<=。)/);
+      for (let sentence of sentences) {
+        const chunks = sentence.split(/(?<=[、。])/g);
+        let line = '';
+        for (const chunk of chunks) {
+          if ((line + chunk).length > maxLen) {
+            if (line) result.push(line);
+            line = chunk;
+          } else {
+            line += chunk;
+          }
+        }
+        if (line) result.push(line);
+      }
+      return result;
+    }
+
+    function formatEnglishText(text, maxLen) {
+      const sentences = splitEnglishSentences(text);
+      const result = [];
+      for (let sentence of sentences) {
+        const words = sentence.match(/\S+|\s+/g) || [];
+        let line = '';
+        for (const word of words) {
+          if (/\.{2,}|、{2,}|。{2,}/.test(word)) {
+            line += word;
+            continue;
+          }
+          if ((line + word).length > maxLen) {
+            if (line.trim()) result.push(line.trim());
+            line = word.trimStart();
+          } else {
+            line += word;
+          }
+        }
+        if (line.trim()) result.push(line.trim());
+      }
+      return result;
+    }
+
+    function splitEnglishSentences(text) {
+      const quoteRanges = findQuoteRanges(text, ['"', '“', '”']);
+      const sentences = [];
+      let current = '';
+      for (let i = 0; i < text.length; i++) {
+        current += text[i];
+        const inQuote = quoteRanges.some(r => i >= r.start && i <= r.end);
+        if (!inQuote && /[.!?]/.test(text[i])) {
+          if (i + 1 >= text.length || /\s/.test(text[i + 1])) {
+            sentences.push(current.trim());
+            current = '';
+          }
+        }
+      }
+      if (current.trim()) sentences.push(current.trim());
+      return sentences;
+    }
+
+    function findQuoteRanges(text, quoteChars) {
+      const ranges = [];
+      let inside = false;
+      let start = -1;
+      for (let i = 0; i < text.length; i++) {
+        if (quoteChars.includes(text[i])) {
+          if (!inside) {
+            inside = true;
+            start = i;
+          } else {
+            ranges.push({ start: start, end: i });
+            inside = false;
+          }
+        }
+      }
+      return ranges;
+    }
+
+    function copyToClipboard() {
+      const text = document.getElementById('output').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1000);
+      });
+    }
+  </script>
+</body>
+</html>
