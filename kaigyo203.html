@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<!--ver2.03-->
+<head>
+  <meta charset="UTF-8">
+  <title>字幕用 自然改行ツール（意味の切れ目重視対応）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 80px auto 20px auto;
+      text-align: center;
+    }
+
+    textarea, input, button {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      font-size: 1rem;
+      display: block;
+    }
+
+    #output-container {
+      position: relative;
+      max-width: 600px;
+      margin: 20px auto 0 auto;
+      text-align: left;
+    }
+
+    #output {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      min-height: 100px;
+    }
+
+    #copyBtn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 0.9rem;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .logo {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
+
+    .logo img {
+      height: 40px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">
+    <img src="logo.png" alt="ツールロゴ" />
+  </div>
+
+  <h1>字幕用 自然改行ツール（意味の切れ目重視対応）</h1>
+
+  <label>テキスト入力:</label>
+  <textarea id="inputText" rows="6" placeholder="字幕にしたい文章を入力してください..."></textarea>
+
+  <label>最大文字数（1行）:</label>
+  <input type="number" id="maxChars" value="70" min="10" />
+
+  <button onclick="formatText()">整形する</button>
+
+  <h2>整形後テキスト:</h2>
+  <div id="output-container">
+    <button id="copyBtn" onclick="copyToClipboard()">Copy</button>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    function formatText() {
+      const text = document.getElementById('inputText').value.trim();
+      const maxLen = parseInt(document.getElementById('maxChars').value, 10);
+      const output = document.getElementById('output');
+
+      if (!text) {
+        output.textContent = 'テキストが空です。';
+        return;
+      }
+
+      const result = [];
+      const sentences = splitByPunctuation(text);
+
+      for (let sentence of sentences) {
+        while (sentence.length > maxLen) {
+          let breakIndex = findBreakPoint(sentence, maxLen);
+
+          if (breakIndex === -1) {
+            result.push(sentence);
+            sentence = '';
+            break;
+          }
+
+          // 語の途中で切れそうなら後ろにずらす
+          if (breakIndex > 0 && breakIndex < sentence.length) {
+            if (isEnglish(sentence)) {
+              while (
+                breakIndex < sentence.length &&
+                /\w/.test(sentence[breakIndex]) &&
+                /\w/.test(sentence[breakIndex - 1])
+              ) {
+                breakIndex++;
+              }
+            } else {
+              while (
+                breakIndex < sentence.length &&
+                /[ぁ-んァ-ヶ一-龠々]/.test(sentence[breakIndex])
+              ) {
+                breakIndex++;
+              }
+            }
+          }
+
+          result.push(sentence.slice(0, breakIndex));
+          sentence = sentence.slice(breakIndex).trimStart();
+        }
+
+        if (sentence.length > 0) result.push(sentence);
+      }
+
+      output.textContent = result.join('\n');
+    }
+
+    function isEnglish(str) {
+      const en = (str.match(/[a-zA-Z]/g) || []).length;
+      const jp = (str.match(/[\u3000-\u30ff\u4e00-\u9faf]/g) || []).length;
+      return en > jp;
+    }
+
+    function splitByPunctuation(text) {
+      const quoteChars = ['"', '”'];
+      const quoteRanges = [];
+      let insideQuote = false;
+      let quoteStart = -1;
+      for (let i = 0; i < text.length; i++) {
+        if (quoteChars.includes(text[i])) {
+          if (!insideQuote) {
+            insideQuote = true;
+            quoteStart = i;
+          } else {
+            insideQuote = false;
+            quoteRanges.push({ start: quoteStart, end: i });
+            quoteStart = -1;
+          }
+        }
+      }
+
+      let result = '';
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        const isConsecutivePunct =
+          (char === '.' && text.slice(i, i + 3) === '...') ||
+          (char === '、' && text.slice(i, i + 3) === '、、、') ||
+          (char === '。' && text.slice(i, i + 3) === '。。。');
+
+        if (isConsecutivePunct) {
+          result += text.slice(i, i + 3);
+          i += 2;
+          continue;
+        }
+
+        const inQuote = quoteRanges.some(r => i >= r.start && i <= r.end);
+
+        if (!inQuote && (char === '。' || char === '．' || char === '.')) {
+          result += char + '\n';
+        } else {
+          result += char;
+        }
+      }
+
+      return result
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    }
+
+    function findBreakPoint(text, maxLen) {
+      const candidateScores = [];
+      const keywords = ['and', 'but', 'because', 'when', 'where', 'that', 'if'];
+      const lower = text.toLowerCase();
+
+      for (let i = 0; i < maxLen; i++) {
+        const c = text[i];
+        let score = 0;
+        if (c === ' ' || c === ',' || c === '、') {
+          score = (c === ',' || c === '、') ? 2 : 1;
+        }
+        for (const kw of keywords) {
+          if (lower.startsWith(kw, i + 1)) {
+            score = Math.max(score, 3);
+          }
+        }
+        if (score > 0) candidateScores.push({ index: i, score });
+      }
+
+      if (candidateScores.length === 0) return -1;
+
+      const ideal = Math.floor(maxLen / 2);
+      let best = candidateScores[0];
+      let bestEval = evaluate(best, ideal);
+
+      for (let i = 1; i < candidateScores.length; i++) {
+        const cand = candidateScores[i];
+        const ev = evaluate(cand, ideal);
+        if (ev < bestEval) {
+          best = cand;
+          bestEval = ev;
+        }
+      }
+
+      const ch = text[best.index];
+      if (ch === ',' || ch === '、') {
+        return best.index + 1;
+      }
+
+      return best.index;
+    }
+
+    function evaluate(cand, ideal) {
+      return Math.abs(cand.index - ideal) - cand.score * 5;
+    }
+
+    function copyToClipboard() {
+      const text = document.getElementById('output').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1000);
+      });
+    }
+  </script>
+
+</body>
+</html>
