@@ -1,460 +1,58 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <title>字幕用 自然改行ツール</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 40px auto; background-color: #f4f7f6; color: #333; }
-        h1, h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-top: 30px; }
-        .container { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
-        .section { flex: 1; min-width: 300px; }
-        textarea { width: 100%; min-height: 150px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 0.95rem; line-height: 1.5; }
-        #output { white-space: pre-wrap; border: 1px solid #ddd; padding: 15px; background: #fff; min-height: 150px; font-family: 'Consolas', 'Monaco', monospace; border-radius: 5px; overflow-x: auto; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-        .controls { background-color: #eaf2f8; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .controls div { margin-bottom: 12px; }
-        .controls label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        .controls input[type="number"],
-        .controls select { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        .controls input[type="radio"] { margin-right: 8px; }
-        .controls input[type="checkbox"] { margin-right: 8px; transform: scale(1.1); }
-        .controls .radio-group label { display: inline-block; margin-right: 15px; font-weight: normal; }
-        button { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1rem; transition: background-color 0.3s ease; display: block; width: 100%; max-width: 250px; margin: 20px auto 0; }
-        button:hover { background-color: #2980b9; }
-        button:active { transform: translateY(1px); }
-        .copy-button { background-color: #27ae60; margin-top: 10px; }
-        .copy-button:hover { background-color: #229954; }
-        @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            button { max-width: 100%; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>日本語自然改行ツール</title>
+  <script src="https://cdn.jsdelivr.net/gh/takuyaa/tiny-segmenter/tiny_segmenter.js"></script>
+  <style>
+    textarea { width: 100%; height: 120px; margin: 10px 0; }
+    button { padding: 8px 16px; }
+  </style>
 </head>
 <body>
-    <h1>字幕用 自然改行ツール106</h1>
 
-    <div class="container">
-        <div class="section">
-            <label for="inputText">入力テキスト:</label>
-            <textarea id="inputText" placeholder="ここに字幕テキストを入力してください。日本語と英語の両方に対応しています。"></textarea>
-        </div>
+  <h3>最大文字数を指定してください</h3>
+  <input type="number" id="maxLength" value="25" min="5" max="100">
+  
+  <h3>元のテキスト</h3>
+  <textarea id="inputText" placeholder="ここにテキストを入力してください..."></textarea>
+  
+  <button onclick="processText()">整形する</button>
+  
+  <h3>整形後のテキスト</h3>
+  <textarea id="outputText" readonly></textarea>
+  <button onclick="copyOutput()">コピー</button>
 
-        <div class="section">
-            <label for="output">出力結果:</label>
-            <div id="output"></div>
-            <button id="copyButton" class="copy-button">出力結果をコピー</button>
-        </div>
-    </div>
+  <script>
+    function processText() {
+      const input = document.getElementById('inputText').value;
+      const maxLen = parseInt(document.getElementById('maxLength').value, 10);
+      const segmenter = new TinySegmenter();
+      const words = segmenter.segment(input);
 
-    <div class="controls">
-        <h2>設定</h2>
-        <div class="radio-group">
-            <label>言語:</label>
-            <input type="radio" id="langJapanese" name="language" value="japanese" checked />
-            <label for="langJapanese">日本語</label>
-            <input type="radio" id="langEnglish" name="language" value="english" />
-            <label for="langEnglish">英語</label>
-        </div>
+      let result = '';
+      let line = '';
 
-        <div>
-            <label for="maxChars">1行の最大文字数:</label>
-            <input type="number" id="maxChars" value="30" min="10" />
-        </div>
-        <div>
-            <label for="maxLines">1字幕の最大行数:</label>
-            <input type="number" id="maxLines" value="2" min="1" max="5" />
-        </div>
-
-        <div id="japaneseOptions">
-            <h3>日本語固有の設定</h3>
-            <div>
-                <input type="checkbox" id="avoidLineHeadPunctuation" checked />
-                <label for="avoidLineHeadPunctuation">行頭禁則処理（句読点、閉じ括弧などが行頭に来ないようにする）</label>
-            </div>
-            <div>
-                <input type="checkbox" id="preferPunctuationBreakJapanese" checked />
-                <label for="preferPunctuationBreakJapanese">句読点（、。）での改行を優先</label>
-            </div>
-        </div>
-
-        <div id="englishOptions" style="display: none;">
-            <h3>英語固有の設定</h3>
-            <div>
-                <input type="checkbox" id="preferPunctuationBreakEnglish" checked />
-                <label for="preferPunctuationBreakEnglish">句読点（.,!?など）での改行を優先</label>
-            </div>
-            <div>
-                <input type="checkbox" id="avoidHyphenBreak" checked />
-                <label for="avoidHyphenBreak">ハイフン接続語の途中改行を避ける</label>
-            </div>
-        </div>
-    </div>
-
-    <button id="processButton">改行処理を実行</button>
-
-    <script>
-        // DOM要素の取得
-        const inputTextarea = document.getElementById('inputText');
-        const outputDiv = document.getElementById('output');
-        const maxCharsInput = document.getElementById('maxChars');
-        const maxLinesInput = document.getElementById('maxLines');
-        const langJapaneseRadio = document.getElementById('langJapanese');
-        const langEnglishRadio = document.getElementById('langEnglish');
-        const japaneseOptionsDiv = document.getElementById('japaneseOptions');
-        const englishOptionsDiv = document.getElementById('englishOptions');
-        const avoidLineHeadPunctuationCheckbox = document.getElementById('avoidLineHeadPunctuation');
-        const preferPunctuationBreakJapaneseCheckbox = document.getElementById('preferPunctuationBreakJapanese');
-        const preferPunctuationBreakEnglishCheckbox = document.getElementById('preferPunctuationBreakEnglish');
-        const avoidHyphenBreakCheckbox = document.getElementById('avoidHyphenBreak');
-        const processButton = document.getElementById('processButton');
-        const copyButton = document.getElementById('copyButton');
-
-        // 初期設定値の調整
-        const defaultJapaneseMaxChars = 30;
-        const defaultEnglishMaxChars = 42;
-
-        // 言語オプション表示の切り替え
-        function toggleLanguageOptions() {
-            if (langJapaneseRadio.checked) {
-                japaneseOptionsDiv.style.display = 'block';
-                englishOptionsDiv.style.display = 'none';
-                maxCharsInput.value = defaultJapaneseMaxChars;
-            } else {
-                japaneseOptionsDiv.style.display = 'none';
-                englishOptionsDiv.style.display = 'block';
-                maxCharsInput.value = defaultEnglishMaxChars;
-            }
+      for (const word of words) {
+        if ((line + word).length > maxLen) {
+          result += line.trim() + '\n';
+          line = word;
+        } else {
+          line += word;
         }
+      }
+      result += line.trim(); // 残りを追加
 
-        // イベントリスナー
-        langJapaneseRadio.addEventListener('change', toggleLanguageOptions);
-        langEnglishRadio.addEventListener('change', toggleLanguageOptions);
-        processButton.addEventListener('click', formatText);
-        copyButton.addEventListener('click', copyOutput);
+      document.getElementById('outputText').value = result;
+    }
 
-        // 初期表示
-        toggleLanguageOptions();
+    function copyOutput() {
+      const output = document.getElementById('outputText');
+      output.select();
+      document.execCommand('copy');
+      alert('コピーしました');
+    }
+  </script>
 
-        // 日本語の改行ロジック
-        function formatJapaneseText(text, maxLen, options) {
-            const lines = [];
-            let remaining = text.trim();
-
-            const forbiddenHeadChars = /[、。！？々ー・？！）」｝〕》〉’”）\]\)]/;
-            const forbiddenTailChars = /[（「『【［｛〈“]/;
-
-            const strictForbiddenBreaks = [
-                'でしょうか', 'でしょう', 'かもしれません', 'られません', 'られます', 'ますね', 'です', 'ます',
-                '〜という', '〜かと', '〜によって', '〜であれば', '〜である', '〜とする', '〜として',
-                '〜について', '〜によって', '〜しまっ', '〜だろう', '〜だろうか',
-                'のような', 'のようなもの', 'のようなこと', 'のような方', 'ということで',
-                'にもならない', 'もどかしい', 'イメージされ', '映し出される', '用意されて',
-                'なってしまう', 'ここで言えない'
-            ];
-
-            while (remaining.length > 0) {
-                if (remaining.length <= maxLen) {
-                    lines.push(remaining);
-                    break;
-                }
-
-                let bestCut = -1;
-                let bestScore = -Infinity;
-
-                const searchStart = Math.min(maxLen, remaining.length);
-                const searchEnd = Math.max(0, maxLen - 7);
-
-                for (let i = searchStart; i > searchEnd; i--) {
-                    const charBeforeCut = remaining[i - 1];
-                    const charAfterCut = remaining[i];
-                    const currentPart = remaining.slice(0, i);
-                    const nextPartStart = remaining.slice(i, i + 10);
-
-                    let currentScore = 0;
-                    let isForbidden = false;
-
-                    if (options.avoidLineHeadPunctuation) {
-                        if (forbiddenHeadChars.test(charAfterCut)) { isForbidden = true; }
-                        if (forbiddenTailChars.test(charBeforeCut)) { isForbidden = true; }
-                    }
-
-                    if (charBeforeCut && charAfterCut) {
-                        if (/[一-龠]$/.test(charBeforeCut) && /[一-龠ぁ-んァ-ヶ]/.test(charAfterCut)) { isForbidden = true; }
-                        if (/[ぁ-んァ-ヶ]$/.test(charBeforeCut) && /[一-龠]/.test(charAfterCut)) { isForbidden = true; }
-                        if (/[ァ-ヶー]$/.test(charBeforeCut) && /[ァ-ヶー]/.test(charAfterCut)) { isForbidden = true; }
-                        if (/[a-zA-Z0-9]$/.test(charBeforeCut) && /[a-zA-Z0-9]/.test(charAfterCut)) { isForbidden = true; }
-                        if (/[0-9]$/.test(charBeforeCut) && /[人個つ度枚回円ドル%]/.test(charAfterCut)) { isForbidden = true; }
-                    }
-
-                    // Strict forbidden breaks for common Japanese phrases/compounds
-                    for (const pattern of strictForbiddenBreaks) {
-                        // Check if cutting at 'i' breaks the pattern
-                        const patternBefore = pattern.slice(0, i - (currentPart.length - pattern.length)); // Part of pattern in currentPart
-                        const patternAfter = pattern.slice(i - (currentPart.length - pattern.length));     // Part of pattern in nextPartStart
-
-                        if (currentPart.endsWith(patternBefore) && nextPartStart.startsWith(patternAfter) && patternAfter.length > 0) {
-                            isForbidden = true;
-                            break;
-                        }
-                    }
-
-                    // Specific check for particles/verb endings
-                    const prevChar = remaining[i-2];
-                    const charBefore = remaining[i-1];
-                    const charAfter = remaining[i];
-
-                    // Avoid splitting verb conjugations (e.g., します => し\nます)
-                    if (/[いいるうえるくぐすつぬふむゆり]$/.test(charBefore) && /[ぁ-ん]/.test(charAfter)) { // Basic verb form + following hiragana
-                        if (['す', 'ます', 'です', 'た', 'て', 'れる', 'ない', 'せる'].some(suffix => (charBefore + charAfter).startsWith(suffix))) {
-                           isForbidden = true;
-                        }
-                    }
-                    
-                    // Avoid splitting particles from previous word
-                    if (/[はがをにへとでからよりもねよなむるりつてとかとたき]$/.test(charAfter) && !/[、。！？]/.test(charBefore)) {
-                        isForbidden = true;
-                    }
-                    if (/[はがをにへとでからよりもねよなむるりつてとかとたき]$/.test(charBefore) && !/[、。！？]/.test(charBefore)) {
-                         isForbidden = true;
-                    }
-
-
-                    if (isForbidden) { continue; }
-
-                    if (options.preferPunctuationBreakJapanese) {
-                        if (/[、。！？]/.test(charBeforeCut)) {
-                            currentScore += 100;
-                        }
-                    }
-                    
-                    // Prioritize longer lines but not too much
-                    currentScore -= Math.abs(maxLen - i) * 0.05;
-
-                    // Small bonus for natural breaks (e.g., after particle or sentence end)
-                    if (/[がをにでとへからまでよりも]$/.test(charBeforeCut) && !/[、。！？]/.test(charBeforeCut)) {
-                        currentScore += 5;
-                    }
-
-                    if (currentScore > bestScore) {
-                        bestScore = currentScore;
-                        bestCut = i;
-                    }
-                }
-
-                if (bestCut === -1) {
-                    let fallbackCut = -1;
-                    const fallbackSearchEnd = Math.max(0, maxLen - 3);
-
-                    for (let i = maxLen; i >= fallbackSearchEnd; i--) {
-                        const charAfterForced = remaining[i];
-                        if (options.avoidLineHeadPunctuation && forbiddenHeadChars.test(charAfterForced)) {
-                            continue;
-                        }
-                        fallbackCut = i;
-                        break;
-                    }
-
-                    if (fallbackCut !== -1) {
-                        bestCut = fallbackCut;
-                    } else {
-                        bestCut = maxLen;
-                    }
-                }
-
-                lines.push(remaining.slice(0, bestCut));
-                remaining = remaining.slice(bestCut).trimStart();
-            }
-            return lines;
-        }
-
-        // 英語の改行ロジック (大幅に修正)
-        function formatEnglishText(text, maxLen, options) {
-            const preferPunctuation = options.preferPunctuationBreakEnglish;
-            const avoidHyphen = options.avoidHyphenBreak;
-
-            // スペースで単語を分割。句読点を単語に含める
-            const words = text.split(/(\s+)/).filter(s => s.length > 0);
-
-            const lines = [];
-            let currentLine = '';
-
-            for (let i = 0; i < words.length; i++) {
-                const word = words[i];
-                const isSpace = /\s+/.test(word);
-
-                // 単語の長さが maxLen を超える場合は、その単語内で強制改行（稀なケースだが対応）
-                if (!isSpace && word.length > maxLen) {
-                    if (currentLine.length > 0) {
-                        lines.push(currentLine.trim());
-                        currentLine = '';
-                    }
-                    // 単語を maxLen ごとに分割
-                    for (let k = 0; k < word.length; k += maxLen) {
-                        lines.push(word.slice(k, k + maxLen));
-                    }
-                    continue;
-                }
-
-                if (currentLine === '' && isSpace) {
-                    continue; // 行の最初にスペースが来たら無視
-                }
-
-                // 次の単語を追加した場合の長さを確認
-                const potentialLine = currentLine + (isSpace ? '' : (currentLine === '' ? '' : ' ')) + word; // スペースを適切に挿入
-
-                if (potentialLine.length > maxLen) {
-                    if (currentLine.length > 0) {
-                        lines.push(currentLine.trim());
-                    }
-                    currentLine = word;
-                } else {
-                    currentLine = potentialLine;
-                }
-            }
-            if (currentLine) {
-                lines.push(currentLine.trim());
-            }
-
-            // --- 句読点優先、ハイフン回避などの最終調整 ---
-            const finalLines = [];
-            let tempLine = '';
-
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i];
-
-                if (tempLine) {
-                    line = tempLine + ' ' + line; // 結合する場合はスペースを入れる
-                    tempLine = '';
-                }
-
-                // ハイフン接続語の途中改行回避
-                if (avoidHyphen && i < lines.length - 1) {
-                    const nextLineStartWord = lines[i+1].split(' ')[0];
-                    if (line.endsWith('-') && nextLineStartWord.length > 0 && !/\s/.test(nextLineStartWord[0])) {
-                        const combinedPotential = line + nextLineStartWord;
-                        if (combinedPotential.length <= maxLen) {
-                            tempLine = combinedPotential;
-                            i++;
-                            continue;
-                        }
-                    }
-                }
-
-                // 句読点での改行優先
-                if (preferPunctuation) {
-                    const lastChar = line[line.length - 1];
-                    // 句読点（. , ! ?）で終わり、かつ次の行がある場合で、現在行がmaxLenに余裕がある場合
-                    if (/[.,!?]$/.test(lastChar) && line.length < maxLen && i < lines.length - 1) {
-                        finalLines.push(line);
-                        continue;
-                    }
-                }
-                
-                finalLines.push(line);
-            }
-            if (tempLine) {
-                finalLines.push(tempLine);
-            }
-
-            const resultSubtitles = [];
-            let currentSubtitleLines = [];
-            for(const line of finalLines) {
-                currentSubtitleLines.push(line);
-                if (currentSubtitleLines.length >= maxLines) {
-                    resultSubtitles.push(currentSubtitleLines.join('\n'));
-                    currentSubtitleLines = [];
-                }
-            }
-            if (currentSubtitleLines.length > 0) {
-                resultSubtitles.push(currentSubtitleLines.join('\n'));
-            }
-
-            return resultSubtitles;
-        }
-
-        // メインの整形関数 (入力テキストの正規化を追加)
-        function formatText() {
-            // ここで入力テキストの改行コードを削除して正規化
-            let text = inputTextarea.value.replace(/[\r\n]+/g, ' ').trim();
-            
-            const maxChars = parseInt(maxCharsInput.value, 10);
-            const maxLines = parseInt(maxLinesInput.value, 10);
-
-            if (!text) {
-                outputDiv.textContent = 'テキストが空です。';
-                return;
-            }
-
-            const currentLanguage = langJapaneseRadio.checked ? 'japanese' : 'english';
-
-            let resultLines = [];
-            const options = {
-                avoidLineHeadPunctuation: avoidLineHeadPunctuationCheckbox.checked,
-                preferPunctuationBreakJapanese: preferPunctuationBreakJapaneseCheckbox.checked,
-                preferPunctuationBreakEnglish: preferPunctuationBreakEnglishCheckbox.checked,
-                avoidHyphenBreak: avoidHyphenBreakCheckbox.checked
-            };
-
-            if (currentLanguage === 'japanese') {
-                const singleLineFormatted = formatJapaneseText(text, maxChars, options);
-                let currentSubtitle = [];
-                for (let i = 0; i < singleLineFormatted.length; i++) {
-                    currentSubtitle.push(singleLineFormatted[i]);
-                    if (currentSubtitle.length >= maxLines || i === singleLineFormatted.length - 1) {
-                        resultLines.push(currentSubtitle.join('\n'));
-                        currentSubtitle = [];
-                    }
-                }
-            } else {
-                resultLines = formatEnglishText(text, maxChars, options);
-            }
-
-            outputDiv.textContent = resultLines.join('\n\n');
-        }
-
-        // 出力結果をコピーする関数 (変更なし)
-        function copyOutput() {
-            const textToCopy = outputDiv.textContent;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    alert('出力結果をクリップボードにコピーしました！');
-                }).catch(err => {
-                    console.error('クリップボードへのコピーに失敗しました', err);
-                    fallbackCopyTextToClipboard(textToCopy);
-                });
-            } else {
-                fallbackCopyTextToClipboard(textToCopy);
-            }
-        }
-
-        // navigator.clipboard が使えない場合のフォールバック (変更なし)
-        function fallbackCopyTextToClipboard(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    alert('出力結果をクリップボードにコピーしました！');
-                } else {
-                    alert('クリップボードへのコピーに失敗しました。手動でコピーしてください。');
-                }
-            } catch (err) {
-                console.error('Fallback: クリップボードへのコピーに失敗しました', err);
-                alert('クリップボードへのコピーに失敗しました。手動でコピーしてください。');
-            }
-            document.body.removeChild(textarea);
-        }
-
-        // 初期テキストをセット
-        inputTextarea.value = `「片想い世界」というタイトルを聞いて、みなさまはどのような物語をイメージされるでしょうか？冒頭から、仲良し姉妹のような女性3人の等身大の暮らしぶりが映し出されることで、平凡な日々の幸せを描く作品かと思いきや、誰もが驚く意外な真相が用意されています。
-ネタバレになってしまうため、ここで言えないのがもどかしい……！
-題材となっているのは、どうにもならない“究極の片思い”。
-This is an example of English subtitles. We expect it to be properly divided according to English rules, prioritizing word breaks and avoiding hyphens. Let's see how it handles a slightly longer sentence. It should work perfectly!`;
-
-    </script>
 </body>
 </html>
