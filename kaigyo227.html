@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>テキスト整形プレビュー</title>
+  <title>自然な改行プレビュー</title>
   <style>
     body {
       font-family: sans-serif;
@@ -23,43 +23,51 @@
   </style>
 </head>
 <body>
-  <h2>最大文字数25で自然改行プレビュー</h2>
-  <textarea id="input" placeholder="テキストをここに貼り付け"></textarea>
+  <h2>最大文字数25＋自然改行102</h2>
+  <textarea id="input" placeholder="テキストを入力してください"></textarea>
   <br />
   <button onclick="formatText()">整形して表示</button>
   <div class="output" id="output"></div>
 
   <script>
     function formatText() {
-      const text = document.getElementById('input').value;
+      const text = document.getElementById("input").value;
       const maxLen = 25;
-      const output = [];
-
+      const breakChars = ["。", "、", "，", "！", "？", " ", "　"];
       const lines = text.split(/\n/);
+      const result = [];
+
       for (const line of lines) {
-        let buffer = '';
-        for (let i = 0; i < line.length; i++) {
+        let buffer = "";
+        let i = 0;
+
+        while (i < line.length) {
           buffer += line[i];
+          i++;
+
           if (buffer.length >= maxLen) {
-            // 文中の区切りで改行できる位置を探す
-            const breakChars = ['、', '。', '？', '！', ' ', '，', '：', '；'];
-            let breakPoint = -1;
+            let breakIndex = -1;
+
+            // buffer内の末尾から改行候補文字を探す
             for (let j = buffer.length - 1; j >= 0; j--) {
               if (breakChars.includes(buffer[j])) {
-                breakPoint = j + 1;
+                breakIndex = j + 1;
                 break;
               }
             }
-            if (breakPoint === -1) breakPoint = maxLen;
 
-            output.push(buffer.slice(0, breakPoint));
-            buffer = buffer.slice(breakPoint);
+            // 改行位置が見つからなければ maxLen で強制改行
+            if (breakIndex === -1) breakIndex = maxLen;
+
+            result.push(buffer.slice(0, breakIndex));
+            buffer = buffer.slice(breakIndex);
           }
         }
-        if (buffer.trim()) output.push(buffer);
+
+        if (buffer.trim()) result.push(buffer);
       }
 
-      document.getElementById('output').innerText = output.join('\n');
+      document.getElementById("output").innerText = result.join("\n");
     }
   </script>
 </body>
