@@ -20,7 +20,7 @@
 
 <script>
 function formatJapaneseText(text, maxLen) {
-  const avoidPhrases = ['でしょうか', 'かもしれ', 'ぶりが', 'ことが', 'ものを', 'みなさまは', '姉妹のような'];
+  const avoidPhrases = ['でしょうか', 'かもしれ', 'ぶりが', 'ことが', 'ものを', 'みなさまは', '姉妹のような', 'という'];
   const forbiddenBreaks = ['聞いて', '言って', '思って', 'される', 'されて', 'させる', 'させて', 'イメージされる'];
   const avoidBreakBefore = ['どのよう', 'そのため', 'このよう', 'なぜなら', 'という'];
   const lines = [];
@@ -38,21 +38,35 @@ function formatJapaneseText(text, maxLen) {
     for (let i = maxLen; i > 4; i--) {
       const part = remaining.slice(0, i);
       const nextChar = remaining[i];
-      const context = remaining.slice(i - 4, i + 6);
+      const context = remaining.slice(i - 5, i + 6);
       const after = remaining.slice(i, i + 6);
 
+      // 禁止句切れ（複合語など）
       if (avoidPhrases.some(p => context.includes(p))) continue;
       if (forbiddenBreaks.some(p => context.includes(p) || after.startsWith(p))) continue;
       if (avoidBreakBefore.some(p => after.startsWith(p))) continue;
 
+      // 句読点直後での改行は避ける（句読点は行末）
       if (/^[、。！？]/.test(nextChar)) continue;
+
+      // 終助詞・閉じ括弧などの直後は改行不可
       if (/^[」』）〕】》〉”]/.test(nextChar)) continue;
+
+      // 開き括弧の直前での改行禁止
       if (/[「『（〔【《〈“]$/.test(part)) continue;
 
+      // 漢字+カタカナ・英数字複合語切れ防止
       if (/[一-龠々]$/.test(part) && /^[ァ-ンーa-zA-Z0-9]/.test(nextChar)) continue;
       if (/\d$/.test(part) && /^[一-龠]/.test(nextChar)) continue;
       if (/[一-龠]$/.test(part) && /^\d/.test(nextChar)) continue;
 
+      // 「という」などの連語は切らない
+      if (/という$/.test(part + nextChar)) continue;
+
+      // ひらがな連続の途中切れ抑制
+      if (/^[ぁ-ん]{2}$/.test(part.slice(-2))) continue;
+
+      // スコア付けで最適切断位置決定
       let score = 0;
       if (/[、。]$/.test(part)) score += 10;
       if (/(を|に|が|は|と|で|や|も|から|まで|より)$/.test(part)) score += 5;
@@ -74,6 +88,7 @@ function formatJapaneseText(text, maxLen) {
 
   return lines;
 }
+
 
 function isJapanese(str) {
   return /[一-龠ぁ-んァ-ン]/.test(str);
