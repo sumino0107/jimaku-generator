@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<!--ver2.27-->
+<head>
+  <meta charset="UTF-8" />
+  <title>字幕用 自然改行ツール（簡易テスト版）</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 60px auto; }
+    textarea, input, button { width: 100%; margin: 10px 0; font-size: 1rem; }
+    #output { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; min-height: 120px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>字幕用 自然改行ツール（簡易テスト版）</h1>
+  <textarea id="inputText" rows="6" placeholder="テキスト入力してください"></textarea>
+  <input type="number" id="maxChars" value="25" min="10" />
+  <button onclick="formatText()">整形する</button>
+  <h2>結果</h2>
+  <div id="output"></div>
+
+<script>
+function formatJapaneseText(text, maxLen) {
+  const avoidPhrases = ['でしょうか', 'かもしれ', 'ぶりが', 'ことが', 'ものを', 'みなさまは', '姉妹のような'];
+  const forbiddenBreaks = ['聞いて', '言って', '思って', 'される', 'されて', 'させる', 'させて', 'イメージされる'];
+  const avoidBreakBefore = ['どのよう', 'そのため', 'このよう', 'なぜなら', 'という'];
+  const lines = [];
+  let remaining = text.trim();
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLen) {
+      lines.push(remaining);
+      break;
+    }
+
+    let bestCut = -1;
+    let bestScore = -Infinity;
+
+    for (let i = maxLen; i > 4; i--) {
+      const part = remaining.slice(0, i);
+      const nextChar = remaining[i];
+      const context = remaining.slice(i - 4, i + 6);
+      const after = remaining.slice(i, i + 6);
+
+      if (avoidPhrases.some(p => context.includes(p))) continue;
+      if (forbiddenBreaks.some(p => context.includes(p) || after.startsWith(p))) continue;
+      if (avoidBreakBefore.some(p => after.startsWith(p))) continue;
+
+      if (/^[、。！？]/.test(nextChar)) continue;
+      if (/^[」』）〕】》〉”]/.test(nextChar)) continue;
+      if (/[「『（〔【《〈“]$/.test(part)) continue;
+
+      if (/[一-龠々]$/.test(part) && /^[ァ-ンーa-zA-Z0-9]/.test(nextChar)) continue;
+      if (/\d$/.test(part) && /^[一-龠]/.test(nextChar)) continue;
+      if (/[一-龠]$/.test(part) && /^\d/.test(nextChar)) continue;
+
+      let score = 0;
+      if (/[、。]$/.test(part)) score += 10;
+      if (/(を|に|が|は|と|で|や|も|から|まで|より)$/.test(part)) score += 5;
+      if (/^[ぁ-んァ-ン一-龠々ー]/.test(nextChar)) score -= 2;
+      if (/^[ぁ-ん]{2}$/.test(part.slice(-2))) score -= 3;
+      score += i / maxLen;
+
+      if (score > bestScore) {
+        bestCut = i;
+        bestScore = score;
+      }
+    }
+
+    if (bestCut === -1) bestCut = maxLen;
+
+    lines.push(remaining.slice(0, bestCut));
+    remaining = remaining.slice(bestCut).trimStart();
+  }
+
+  return lines;
+}
+
+function isJapanese(str) {
+  return /[一-龠ぁ-んァ-ン]/.test(str);
+}
+
+function formatText() {
+  const text = document.getElementById('inputText').value.trim();
+  const maxLen = parseInt(document.getElementById('maxChars').value, 10);
+  const output = document.getElementById('output');
+
+  if (!text) {
+    output.textContent = 'テキストが空です。';
+    return;
+  }
+
+  const result = isJapanese(text)
+    ? formatJapaneseText(text, maxLen)
+    : [text];  // 簡易版は日本語のみ対応
+
+  output.textContent = result.join('\n');
+}
+</script>
+</body>
+</html>
