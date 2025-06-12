@@ -1,38 +1,45 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<title>TinySegmenter テスト</title>
-<style>
-  textarea { width: 100%; height: 150px; font-size: 16px; }
-  pre { white-space: pre-wrap; word-wrap: break-word; background: #eee; padding: 10px; }
-  button { margin-top: 10px; padding: 8px 16px; font-size: 16px; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Kuromoji.js 形態素解析デモ</title>
+  <style>
+    textarea { width: 100%; height: 150px; font-size: 16px; }
+    pre { white-space: pre-wrap; word-wrap: break-word; background: #f9f9f9; padding: 10px; }
+    button { margin-top: 10px; padding: 10px 20px; font-size: 16px; }
+  </style>
 </head>
 <body>
 
-<h2>TinySegmenter を使った日本語分かち書きサンプル</h2>
+<h2>Kuromoji.js を使った日本語解析</h2>
 
-<textarea id="inputText" placeholder="ここに日本語テキストを入力してください"></textarea><br/>
+<textarea id="inputText" placeholder="日本語のテキストを入力してください"></textarea><br/>
+<button onclick="analyzeText()">解析する</button>
 
-<button onclick="segmentText()">分かち書きする</button>
+<h3>解析結果（表層形をスペースで区切り）</h3>
+<pre id="output"></pre>
 
-<h3>結果</h3>
-<pre id="result"></pre>
-
-<script src="https://cdn.jsdelivr.net/npm/tiny-segmenter@0.2.0/dist/tiny-segmenter.min.js"></script>
+<script src="https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js"></script>
 <script>
-function segmentText() {
-  const input = document.getElementById('inputText').value.trim();
-  if (!input) {
-    alert('テキストを入力してください');
-    return;
+  function analyzeText() {
+    const input = document.getElementById("inputText").value.trim();
+    if (!input) {
+      alert("テキストを入力してください");
+      return;
+    }
+
+    // 辞書のビルド
+    kuromoji.builder({ dicPath: "https://unpkg.com/kuromoji@0.1.2/dict/" }).build(function (err, tokenizer) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      const tokens = tokenizer.tokenize(input);
+      const words = tokens.map(token => token.surface_form);
+      document.getElementById("output").textContent = words.join(" ");
+    });
   }
-  const segmenter = new TinySegmenter();
-  const segments = segmenter.segment(input);
-  // スペース区切りで表示
-  document.getElementById('result').textContent = segments.join(' ');
-}
 </script>
 
 </body>
