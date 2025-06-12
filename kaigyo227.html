@@ -30,7 +30,7 @@
     </style>
 </head>
 <body>
-    <h1>字幕用 自然改行ツール104</h1>
+    <h1>字幕用 自然改行ツール105</h1>
 
     <div class="container">
         <div class="section">
@@ -57,7 +57,7 @@
 
         <div>
             <label for="maxChars">1行の最大文字数:</label>
-            <input type="number" id="maxChars" value="25" min="10" />
+            <input type="number" id="maxChars" value="30" min="10" />
         </div>
         <div>
             <label for="maxLines">1字幕の最大行数:</label>
@@ -109,7 +109,7 @@
         const copyButton = document.getElementById('copyButton');
 
         // 初期設定値の調整
-        const defaultJapaneseMaxChars = 25; // 初期値を25に戻しておく
+        const defaultJapaneseMaxChars = 30; // 30文字でテストしやすいように初期値を変更
         const defaultEnglishMaxChars = 42;
 
         // 言語オプション表示の切り替え
@@ -134,19 +134,25 @@
         // 初期表示
         toggleLanguageOptions();
 
-        // 日本語の改行ロジック (再々々修正)
+        // 日本語の改行ロジック (再々々々修正)
         function formatJapaneseText(text, maxLen, options) {
             const lines = [];
             let remaining = text.trim();
 
-            // 句読点、閉じ括弧、長音記号など、行頭に来てはいけない文字
             const forbiddenHeadChars = /[、。！？々ー・？！）」｝〕》〉’”）\]\)]/;
-            // 開き括弧など、直後で改行してはいけない文字
             const forbiddenTailChars = /[（「『【［｛〈“]/;
 
-            // 助詞、助動詞などの直前・直後での改行を避けるためのパターン
-            // より広範な助詞のパターン。単独のひらがな一文字だけでなく、結合しやすいパターンも。
-            const particles = ['は', 'が', 'を', 'に', 'へ', 'と', 'で', 'から', 'まで', 'より', 'も', 'な', 'ね', 'よ', 'ば', 'ので', 'のに', 'なら', 'ます', 'です', 'れ', 'せ', 'さ', 'し', 'ん'];
+            // 句読点、助詞、助動詞の連語、頻出する複合語など、特に切ってはいけないパターンを厳しく定義
+            const strictForbiddenBreaks = [
+                // 助詞、助動詞、接続詞の複合
+                'でしょうか', 'でしょう', 'かもしれません', 'られません', 'られます', 'ますね', 'です', 'ます',
+                '〜という', '〜かと', '〜によって', '〜であれば', '〜である', '〜とする', '〜として',
+                '〜について', '〜によって', '〜しまっ', '〜だろう', '〜だろうか',
+                // よくある連語
+                'のような', 'のようなもの', 'のようなこと', 'のような方', 'ということで',
+                'にもならない', 'もどかしい', 'イメージされ', '映し出される', '用意されて',
+                'なってしまう', 'ここで言えない'
+            ];
 
             while (remaining.length > 0) {
                 if (remaining.length <= maxLen) {
@@ -157,67 +163,48 @@
                 let bestCut = -1;
                 let bestScore = -Infinity;
 
-                // 探索範囲: maxLenから開始し、最大でmaxLen-5文字まで短くなることを許容
-                // これにより、あまりにも短い行が連発するのを防ぎつつ、適切な改行点を探す
+                // 探索範囲: maxLenから開始し、最大でmaxLen-7文字まで短くなることを許容
+                // 長めの行でも、ある程度の余裕を持って探索
                 const searchStart = Math.min(maxLen, remaining.length);
-                const searchEnd = Math.max(0, maxLen - 5); // 探索範囲の下限を調整
+                const searchEnd = Math.max(0, maxLen - 7);
 
                 for (let i = searchStart; i > searchEnd; i--) {
                     const charBeforeCut = remaining[i - 1]; // 改行前の文字
                     const charAfterCut = remaining[i];     // 改行後の文字 (行頭に来る文字)
-                    const subStringBefore = remaining.slice(0, i); // 改行前の文字列全体
-                    const subStringAfter = remaining.slice(i);     // 改行後の文字列全体
+                    const currentPart = remaining.slice(0, i); // 改行前の文字列
+                    const nextPartStart = remaining.slice(i, i + 10); // 改行後の先頭10文字程度を見る
 
                     let currentScore = 0;
+                    let isForbidden = false; // 今回の候補が厳禁ルールに引っかかるかどうかのフラグ
 
-                    // --- 厳禁ルール (これを満たす改行位置は選択しない) ---
+                    // --- 厳禁ルール (isForbidden を true にする) ---
                     // 行頭禁則処理
                     if (options.avoidLineHeadPunctuation) {
-                        if (forbiddenHeadChars.test(charAfterCut)) { continue; }
-                        if (forbiddenTailChars.test(charBeforeCut)) { continue; }
+                        if (forbiddenHeadChars.test(charAfterCut)) { isForbidden = true; }
+                        if (forbiddenTailChars.test(charBeforeCut)) { isForbidden = true; }
                     }
 
                     // 熟語、複合語、カタカナ語、英数字と単位などの途中改行を強く避ける
                     if (charBeforeCut && charAfterCut) {
-                        // 漢字-漢字、漢字-ひらがな、ひらがな-漢字などの結合
-                        if (/[一-龠]$/.test(charBeforeCut) && /[一-龠ぁ-んァ-ヶ]/.test(charAfterCut)) { continue; }
-                        if (/[ぁ-んァ-ヶ]$/.test(charBeforeCut) && /[一-龠]/.test(charAfterCut)) { continue; }
-                        // カタカナ-カタカナの結合
-                        if (/[ァ-ヶー]$/.test(charBeforeCut) && /[ァ-ヶー]/.test(charAfterCut)) { continue; }
-                        // 英数字単語の途中 (スペース以外)
-                        if (/[a-zA-Z0-9]$/.test(charBeforeCut) && /[a-zA-Z0-9]/.test(charAfterCut)) { continue; }
-                        // 数字と単位（例: 3人、100円）
-                        if (/[0-9]$/.test(charBeforeCut) && /[人個つ度枚回円ドル%]/.test(charAfterCut)) { continue; }
+                        if (/[一-龠]$/.test(charBeforeCut) && /[一-龠ぁ-んァ-ヶ]/.test(charAfterCut)) { isForbidden = true; }
+                        if (/[ぁ-んァ-ヶ]$/.test(charBeforeCut) && /[一-龠]/.test(charAfterCut)) { isForbidden = true; }
+                        if (/[ァ-ヶー]$/.test(charBeforeCut) && /[ァ-ヶー]/.test(charAfterCut)) { isForbidden = true; }
+                        if (/[a-zA-Z0-9]$/.test(charBeforeCut) && /[a-zA-Z0-9]/.test(charAfterCut)) { isForbidden = true; }
+                        if (/[0-9]$/.test(charBeforeCut) && /[人個つ度枚回円ドル%]/.test(charAfterCut)) { isForbidden = true; }
                     }
 
-                    // 文法的な結合を維持 (より具体的なパターン)
-                    // 「〜でしょうか？」の「〜でしょ」「うか」の区切り
-                    if (subStringBefore.endsWith('でしょ') && subStringAfter.startsWith('うか')) { continue; }
-                    if (subStringBefore.endsWith('でし') && subStringAfter.startsWith('ょうか')) { continue; }
-                    // 「言えないのが」
-                    if (subStringBefore.endsWith('言えない') && subStringAfter.startsWith('のが')) { continue; }
-                    // 「〜かと　思いきや」
-                    if (subStringBefore.endsWith('かと') && subStringAfter.startsWith('思いきや')) { continue; }
-                    // 「〜になって　しまうため」
-                    if (subStringBefore.endsWith('になって') && subStringAfter.startsWith('しまうため')) { continue; }
-                    // 助詞の直前・直後での改行を避ける (より柔軟に)
-                    const lastCharBeforeCut = remaining.slice(i-1, i);
-                    const firstCharAfterCut = remaining.slice(i, i+1);
+                    // 特定のひらがな連語の途中改行を避ける (「ど」「のような」の間の改行など)
+                    // 「ような」「ような」の途中
+                    if (currentPart.endsWith('よう') && nextPartStart.startsWith('な')) { isForbidden = true; }
+                    if (currentPart.endsWith('ど') && nextPartStart.startsWith('のような')) { isForbidden = true; } //「ど\nのような」回避
+                    if (currentPart.endsWith('暮らしぶ') && nextPartStart.startsWith('りが')) { isForbidden = true; } //「暮らしぶ\nりが」回避
+                    if (currentPart.endsWith('作品') && nextPartStart.startsWith('かと思いきや')) { isForbidden = true; } //「作品\nかと思いきや」回避
+                    if (currentPart.endsWith('います') && nextPartStart.startsWith('。')) { isForbidden = true; } //「います\n。」回避
+                    if (currentPart.endsWith('いま') && nextPartStart.startsWith('す。')) { isForbidden = true; } //「いま\nす。」回避
+                    if (currentPart.endsWith('言えない') && nextPartStart.startsWith('のが')) { isForbidden = true; } //「言えない\nのが」回避
 
-                    // 直前がひらがな1文字で、かつそのひらがなが助詞として機能している可能性が高い場合
-                    if (particles.includes(lastCharBeforeCut) && !/[、。！？]/.test(lastCharBeforeCut)) {
-                        // ただし、そのひらがなが単語の一部である場合は除く（例：「もの」「こと」など）
-                        // ここは難易度が高いので、ある程度のパターンで対応
-                        const prevChar = remaining.slice(i-2, i-1);
-                        if (!/[一-龠ァ-ヶa-zA-Z0-9]/.test(prevChar)) { // 前の文字が漢字・カタカナ・英数字でない場合
-                             continue;
-                        }
-                    }
-                    // 行頭に来る文字が助詞の可能性が高い場合
-                    if (particles.includes(firstCharAfterCut) && !/[、。！？]/.test(firstCharAfterCut)) {
-                        continue;
-                    }
-
+                    // 厳禁ルールに引っかかったら、この候補はスキップ
+                    if (isForbidden) { continue; }
 
                     // --- スコアリング ---
                     // 1. 句読点での改行は最優先
@@ -227,17 +214,15 @@
                         }
                     }
 
-                    // 2. maxLenに近い位置を優先し、かつあまり短くなりすぎないようにする
-                    // maxLenからの距離が近いほど良い。
-                    currentScore -= Math.abs(maxLen - i) * 0.1; // ペナルティをさらに弱める
-
-                    // 3. 文節の切れ目をボーナスとして加算（句読点以外）
-                    // 例：「〜で」「、」「〜から」「、」
-                    if (/[がをにでとからまでも]$/.test(charBeforeCut) && /[ぁ-んァ-ヶ一-龠]/.test(charAfterCut)) {
-                        // 助詞の直後で、かつ次が普通の文字
+                    // 2. 助詞の直後での改行を優先（ただし句読点ほどではない）
+                    // 「〜が」「〜を」「〜に」「〜で」などの後
+                    if (/[がをにでとへからまでよりも]$/.test(charBeforeCut)) {
                         currentScore += 5;
                     }
 
+                    // 3. なるべくmaxLenに近い位置を優先し、かつあまり短くなりすぎないようにする
+                    // maxLenからの距離が近いほど良い。
+                    currentScore -= Math.abs(maxLen - i) * 0.05; // ペナルティをさらに弱める
 
                     if (currentScore > bestScore) {
                         bestScore = currentScore;
@@ -246,20 +231,23 @@
                 }
 
                 // 最適な改行位置が見つからない場合（または厳禁ルールしか見つからなかった場合）
-                if (bestCut === -1 || bestScore === -Infinity) {
+                if (bestCut === -1) {
                     // 最終手段として、maxLenから後退し、最低限の行頭禁則を守れる位置を探す
-                    let foundFallbackCut = -1;
-                    for (let i = maxLen; i >= Math.max(0, maxLen - 3); i--) { // 最小限の後退
+                    let fallbackCut = -1;
+                    // 最低でもmaxLen-3文字以内には収めるようにする
+                    const fallbackSearchEnd = Math.max(0, maxLen - 3);
+
+                    for (let i = maxLen; i >= fallbackSearchEnd; i--) {
                         const charAfterForced = remaining[i];
                         if (options.avoidLineHeadPunctuation && forbiddenHeadChars.test(charAfterForced)) {
                             continue;
                         }
-                        foundFallbackCut = i;
+                        fallbackCut = i;
                         break;
                     }
 
-                    if (foundFallbackCut !== -1) {
-                        bestCut = foundFallbackCut;
+                    if (fallbackCut !== -1) {
+                        bestCut = fallbackCut;
                     } else {
                         // 本当にどうしようもない場合はmaxLenで強制改行（これは最終手段中の最終手段）
                         bestCut = maxLen;
@@ -272,71 +260,100 @@
             return lines;
         }
 
-        // 英語の改行ロジック (変更なし、前回のまま)
+        // 英語の改行ロジック (大幅に修正)
         function formatEnglishText(text, maxLen, options) {
             const preferPunctuation = options.preferPunctuationBreakEnglish;
             const avoidHyphen = options.avoidHyphenBreak;
-            const words = text.split(/(\s+)/); // スペースも保持して分割
+
+            const words = text.split(/(\s+)/).filter(s => s.length > 0); // 空文字列を除外
+
             const lines = [];
             let currentLine = '';
 
             for (let i = 0; i < words.length; i++) {
                 const word = words[i];
+                const isSpace = /\s+/.test(word);
 
-                if (currentLine === '') {
-                    currentLine += word;
+                // 単語の長さが maxLen を超える場合は、その単語内で強制改行（稀なケースだが対応）
+                if (!isSpace && word.length > maxLen) {
+                    if (currentLine.length > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = '';
+                    }
+                    // 単語を強制的に maxLen ごとに分割
+                    for (let k = 0; k < word.length; k += maxLen) {
+                        lines.push(word.slice(k, k + maxLen));
+                    }
+                    continue; // この単語の処理は完了
+                }
+
+                // currentLineが空で、かつ現在のwordがスペースの場合、スキップ
+                if (currentLine === '' && isSpace) {
                     continue;
                 }
 
+                // 次の単語を追加した場合の長さを確認
                 const potentialLine = currentLine + word;
 
                 if (potentialLine.length > maxLen) {
-                    lines.push(currentLine.trim());
-                    currentLine = word;
+                    // 新しい行を開始する必要がある
+                    if (currentLine.length > 0) { // 現在の行が空でなければ追加
+                        lines.push(currentLine.trim());
+                    }
+                    currentLine = word; // 新しい行は現在の単語から始める
                 } else {
                     currentLine = potentialLine;
                 }
             }
+            // 最後に残った行を追加
             if (currentLine) {
                 lines.push(currentLine.trim());
             }
 
+            // --- 句読点優先、ハイフン回避などの最終調整 ---
             const finalLines = [];
-            let tempLine = '';
+            let tempLine = ''; // 一時的に結合された行を保持
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
 
                 if (tempLine) {
-                    line = tempLine + line;
+                    line = tempLine + ' ' + line; // 結合する場合はスペースを入れる
                     tempLine = '';
                 }
 
+                // ハイフン接続語の途中改行回避
                 if (avoidHyphen && i < lines.length - 1) {
-                    if (line.endsWith('-') && !/\s/.test(lines[i+1][0])) {
-                        const combinedPotential = line + lines[i+1];
+                    const nextLineStartWord = lines[i+1].split(' ')[0];
+                    if (line.endsWith('-') && nextLineStartWord.length > 0 && !/\s/.test(nextLineStartWord[0])) {
+                        // ハイフンで終わっていて、次の行の最初の単語がスペースで始まらない場合
+                        const combinedPotential = line + nextLineStartWord; // ハイフンで繋がった単語を結合
                         if (combinedPotential.length <= maxLen) {
                             tempLine = combinedPotential;
-                            i++;
+                            i++; // 次の行はスキップ
                             continue;
                         }
                     }
                 }
 
+                // 句読点での改行優先
                 if (preferPunctuation) {
                     const lastChar = line[line.length - 1];
+                    // 句読点（. , ! ?）で終わり、かつ次の行がある場合で、現在行がmaxLenに余裕がある場合
                     if (/[.,!?]$/.test(lastChar) && line.length < maxLen && i < lines.length - 1) {
                         finalLines.push(line);
                         continue;
                     }
                 }
-
+                
                 finalLines.push(line);
             }
+            // 最後に残った tempLine があれば追加
             if (tempLine) {
                 finalLines.push(tempLine);
             }
 
+            // 1字幕あたりの最大行数で分割
             const resultSubtitles = [];
             let currentSubtitleLines = [];
             for(const line of finalLines) {
