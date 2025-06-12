@@ -30,7 +30,7 @@
     </style>
 </head>
 <body>
-    <h1>字幕用 自然改行ツール105</h1>
+    <h1>字幕用 自然改行ツール106</h1>
 
     <div class="container">
         <div class="section">
@@ -109,7 +109,7 @@
         const copyButton = document.getElementById('copyButton');
 
         // 初期設定値の調整
-        const defaultJapaneseMaxChars = 30; // 30文字でテストしやすいように初期値を変更
+        const defaultJapaneseMaxChars = 30;
         const defaultEnglishMaxChars = 42;
 
         // 言語オプション表示の切り替え
@@ -134,7 +134,7 @@
         // 初期表示
         toggleLanguageOptions();
 
-        // 日本語の改行ロジック (再々々々修正)
+        // 日本語の改行ロジック
         function formatJapaneseText(text, maxLen, options) {
             const lines = [];
             let remaining = text.trim();
@@ -142,13 +142,10 @@
             const forbiddenHeadChars = /[、。！？々ー・？！）」｝〕》〉’”）\]\)]/;
             const forbiddenTailChars = /[（「『【［｛〈“]/;
 
-            // 句読点、助詞、助動詞の連語、頻出する複合語など、特に切ってはいけないパターンを厳しく定義
             const strictForbiddenBreaks = [
-                // 助詞、助動詞、接続詞の複合
                 'でしょうか', 'でしょう', 'かもしれません', 'られません', 'られます', 'ますね', 'です', 'ます',
                 '〜という', '〜かと', '〜によって', '〜であれば', '〜である', '〜とする', '〜として',
                 '〜について', '〜によって', '〜しまっ', '〜だろう', '〜だろうか',
-                // よくある連語
                 'のような', 'のようなもの', 'のようなこと', 'のような方', 'ということで',
                 'にもならない', 'もどかしい', 'イメージされ', '映し出される', '用意されて',
                 'なってしまう', 'ここで言えない'
@@ -163,28 +160,23 @@
                 let bestCut = -1;
                 let bestScore = -Infinity;
 
-                // 探索範囲: maxLenから開始し、最大でmaxLen-7文字まで短くなることを許容
-                // 長めの行でも、ある程度の余裕を持って探索
                 const searchStart = Math.min(maxLen, remaining.length);
                 const searchEnd = Math.max(0, maxLen - 7);
 
                 for (let i = searchStart; i > searchEnd; i--) {
-                    const charBeforeCut = remaining[i - 1]; // 改行前の文字
-                    const charAfterCut = remaining[i];     // 改行後の文字 (行頭に来る文字)
-                    const currentPart = remaining.slice(0, i); // 改行前の文字列
-                    const nextPartStart = remaining.slice(i, i + 10); // 改行後の先頭10文字程度を見る
+                    const charBeforeCut = remaining[i - 1];
+                    const charAfterCut = remaining[i];
+                    const currentPart = remaining.slice(0, i);
+                    const nextPartStart = remaining.slice(i, i + 10);
 
                     let currentScore = 0;
-                    let isForbidden = false; // 今回の候補が厳禁ルールに引っかかるかどうかのフラグ
+                    let isForbidden = false;
 
-                    // --- 厳禁ルール (isForbidden を true にする) ---
-                    // 行頭禁則処理
                     if (options.avoidLineHeadPunctuation) {
                         if (forbiddenHeadChars.test(charAfterCut)) { isForbidden = true; }
                         if (forbiddenTailChars.test(charBeforeCut)) { isForbidden = true; }
                     }
 
-                    // 熟語、複合語、カタカナ語、英数字と単位などの途中改行を強く避ける
                     if (charBeforeCut && charAfterCut) {
                         if (/[一-龠]$/.test(charBeforeCut) && /[一-龠ぁ-んァ-ヶ]/.test(charAfterCut)) { isForbidden = true; }
                         if (/[ぁ-んァ-ヶ]$/.test(charBeforeCut) && /[一-龠]/.test(charAfterCut)) { isForbidden = true; }
@@ -193,36 +185,54 @@
                         if (/[0-9]$/.test(charBeforeCut) && /[人個つ度枚回円ドル%]/.test(charAfterCut)) { isForbidden = true; }
                     }
 
-                    // 特定のひらがな連語の途中改行を避ける (「ど」「のような」の間の改行など)
-                    // 「ような」「ような」の途中
-                    if (currentPart.endsWith('よう') && nextPartStart.startsWith('な')) { isForbidden = true; }
-                    if (currentPart.endsWith('ど') && nextPartStart.startsWith('のような')) { isForbidden = true; } //「ど\nのような」回避
-                    if (currentPart.endsWith('暮らしぶ') && nextPartStart.startsWith('りが')) { isForbidden = true; } //「暮らしぶ\nりが」回避
-                    if (currentPart.endsWith('作品') && nextPartStart.startsWith('かと思いきや')) { isForbidden = true; } //「作品\nかと思いきや」回避
-                    if (currentPart.endsWith('います') && nextPartStart.startsWith('。')) { isForbidden = true; } //「います\n。」回避
-                    if (currentPart.endsWith('いま') && nextPartStart.startsWith('す。')) { isForbidden = true; } //「いま\nす。」回避
-                    if (currentPart.endsWith('言えない') && nextPartStart.startsWith('のが')) { isForbidden = true; } //「言えない\nのが」回避
+                    // Strict forbidden breaks for common Japanese phrases/compounds
+                    for (const pattern of strictForbiddenBreaks) {
+                        // Check if cutting at 'i' breaks the pattern
+                        const patternBefore = pattern.slice(0, i - (currentPart.length - pattern.length)); // Part of pattern in currentPart
+                        const patternAfter = pattern.slice(i - (currentPart.length - pattern.length));     // Part of pattern in nextPartStart
 
-                    // 厳禁ルールに引っかかったら、この候補はスキップ
-                    if (isForbidden) { continue; }
-
-                    // --- スコアリング ---
-                    // 1. 句読点での改行は最優先
-                    if (options.preferPunctuationBreakJapanese) {
-                        if (/[、。！？]/.test(charBeforeCut)) {
-                            currentScore += 100; // 非常に高いボーナス
+                        if (currentPart.endsWith(patternBefore) && nextPartStart.startsWith(patternAfter) && patternAfter.length > 0) {
+                            isForbidden = true;
+                            break;
                         }
                     }
 
-                    // 2. 助詞の直後での改行を優先（ただし句読点ほどではない）
-                    // 「〜が」「〜を」「〜に」「〜で」などの後
-                    if (/[がをにでとへからまでよりも]$/.test(charBeforeCut)) {
-                        currentScore += 5;
+                    // Specific check for particles/verb endings
+                    const prevChar = remaining[i-2];
+                    const charBefore = remaining[i-1];
+                    const charAfter = remaining[i];
+
+                    // Avoid splitting verb conjugations (e.g., します => し\nます)
+                    if (/[いいるうえるくぐすつぬふむゆり]$/.test(charBefore) && /[ぁ-ん]/.test(charAfter)) { // Basic verb form + following hiragana
+                        if (['す', 'ます', 'です', 'た', 'て', 'れる', 'ない', 'せる'].some(suffix => (charBefore + charAfter).startsWith(suffix))) {
+                           isForbidden = true;
+                        }
+                    }
+                    
+                    // Avoid splitting particles from previous word
+                    if (/[はがをにへとでからよりもねよなむるりつてとかとたき]$/.test(charAfter) && !/[、。！？]/.test(charBefore)) {
+                        isForbidden = true;
+                    }
+                    if (/[はがをにへとでからよりもねよなむるりつてとかとたき]$/.test(charBefore) && !/[、。！？]/.test(charBefore)) {
+                         isForbidden = true;
                     }
 
-                    // 3. なるべくmaxLenに近い位置を優先し、かつあまり短くなりすぎないようにする
-                    // maxLenからの距離が近いほど良い。
-                    currentScore -= Math.abs(maxLen - i) * 0.05; // ペナルティをさらに弱める
+
+                    if (isForbidden) { continue; }
+
+                    if (options.preferPunctuationBreakJapanese) {
+                        if (/[、。！？]/.test(charBeforeCut)) {
+                            currentScore += 100;
+                        }
+                    }
+                    
+                    // Prioritize longer lines but not too much
+                    currentScore -= Math.abs(maxLen - i) * 0.05;
+
+                    // Small bonus for natural breaks (e.g., after particle or sentence end)
+                    if (/[がをにでとへからまでよりも]$/.test(charBeforeCut) && !/[、。！？]/.test(charBeforeCut)) {
+                        currentScore += 5;
+                    }
 
                     if (currentScore > bestScore) {
                         bestScore = currentScore;
@@ -230,11 +240,8 @@
                     }
                 }
 
-                // 最適な改行位置が見つからない場合（または厳禁ルールしか見つからなかった場合）
                 if (bestCut === -1) {
-                    // 最終手段として、maxLenから後退し、最低限の行頭禁則を守れる位置を探す
                     let fallbackCut = -1;
-                    // 最低でもmaxLen-3文字以内には収めるようにする
                     const fallbackSearchEnd = Math.max(0, maxLen - 3);
 
                     for (let i = maxLen; i >= fallbackSearchEnd; i--) {
@@ -249,7 +256,6 @@
                     if (fallbackCut !== -1) {
                         bestCut = fallbackCut;
                     } else {
-                        // 本当にどうしようもない場合はmaxLenで強制改行（これは最終手段中の最終手段）
                         bestCut = maxLen;
                     }
                 }
@@ -265,7 +271,8 @@
             const preferPunctuation = options.preferPunctuationBreakEnglish;
             const avoidHyphen = options.avoidHyphenBreak;
 
-            const words = text.split(/(\s+)/).filter(s => s.length > 0); // 空文字列を除外
+            // スペースで単語を分割。句読点を単語に含める
+            const words = text.split(/(\s+)/).filter(s => s.length > 0);
 
             const lines = [];
             let currentLine = '';
@@ -280,39 +287,36 @@
                         lines.push(currentLine.trim());
                         currentLine = '';
                     }
-                    // 単語を強制的に maxLen ごとに分割
+                    // 単語を maxLen ごとに分割
                     for (let k = 0; k < word.length; k += maxLen) {
                         lines.push(word.slice(k, k + maxLen));
                     }
-                    continue; // この単語の処理は完了
-                }
-
-                // currentLineが空で、かつ現在のwordがスペースの場合、スキップ
-                if (currentLine === '' && isSpace) {
                     continue;
                 }
 
+                if (currentLine === '' && isSpace) {
+                    continue; // 行の最初にスペースが来たら無視
+                }
+
                 // 次の単語を追加した場合の長さを確認
-                const potentialLine = currentLine + word;
+                const potentialLine = currentLine + (isSpace ? '' : (currentLine === '' ? '' : ' ')) + word; // スペースを適切に挿入
 
                 if (potentialLine.length > maxLen) {
-                    // 新しい行を開始する必要がある
-                    if (currentLine.length > 0) { // 現在の行が空でなければ追加
+                    if (currentLine.length > 0) {
                         lines.push(currentLine.trim());
                     }
-                    currentLine = word; // 新しい行は現在の単語から始める
+                    currentLine = word;
                 } else {
                     currentLine = potentialLine;
                 }
             }
-            // 最後に残った行を追加
             if (currentLine) {
                 lines.push(currentLine.trim());
             }
 
             // --- 句読点優先、ハイフン回避などの最終調整 ---
             const finalLines = [];
-            let tempLine = ''; // 一時的に結合された行を保持
+            let tempLine = '';
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
@@ -326,11 +330,10 @@
                 if (avoidHyphen && i < lines.length - 1) {
                     const nextLineStartWord = lines[i+1].split(' ')[0];
                     if (line.endsWith('-') && nextLineStartWord.length > 0 && !/\s/.test(nextLineStartWord[0])) {
-                        // ハイフンで終わっていて、次の行の最初の単語がスペースで始まらない場合
-                        const combinedPotential = line + nextLineStartWord; // ハイフンで繋がった単語を結合
+                        const combinedPotential = line + nextLineStartWord;
                         if (combinedPotential.length <= maxLen) {
                             tempLine = combinedPotential;
-                            i++; // 次の行はスキップ
+                            i++;
                             continue;
                         }
                     }
@@ -348,12 +351,10 @@
                 
                 finalLines.push(line);
             }
-            // 最後に残った tempLine があれば追加
             if (tempLine) {
                 finalLines.push(tempLine);
             }
 
-            // 1字幕あたりの最大行数で分割
             const resultSubtitles = [];
             let currentSubtitleLines = [];
             for(const line of finalLines) {
@@ -370,9 +371,11 @@
             return resultSubtitles;
         }
 
-        // メインの整形関数
+        // メインの整形関数 (入力テキストの正規化を追加)
         function formatText() {
-            const text = inputTextarea.value.trim();
+            // ここで入力テキストの改行コードを削除して正規化
+            let text = inputTextarea.value.replace(/[\r\n]+/g, ' ').trim();
+            
             const maxChars = parseInt(maxCharsInput.value, 10);
             const maxLines = parseInt(maxLinesInput.value, 10);
 
