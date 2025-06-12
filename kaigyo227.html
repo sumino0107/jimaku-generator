@@ -11,7 +11,7 @@
   </style>
 </head>
 <body>
-  <h1>字幕用 自然改行ツール（簡易テスト版）229</h1>
+  <h1>字幕用 自然改行ツール（簡易テスト版）230</h1>
   <textarea id="inputText" rows="6" placeholder="テキスト入力してください"></textarea>
   <input type="number" id="maxChars" value="25" min="10" />
   <button onclick="formatText()">整形する</button>
@@ -50,7 +50,36 @@ function formatJapaneseText(text, maxLen) {
       // 行頭の句読点や閉じ括弧禁止
       if (/^[、。！？]/.test(nextChar)) continue;
       if (/^[」』）〕】》〉”]/.test(nextChar)) continue;
-      if (/[「『（〔]()
+      if (/[「『（〔【《〈“]$/.test(part)) continue;
+
+      // 漢字＋カタカナ・英数字の複合語切れ防止（拡張）
+      if (/[一-龠々]$/.test(part) && /^[ァ-ンーa-zA-Z0-9]/.test(nextChar)) continue;
+      if (/[ァ-ンー]$/.test(part) && /^[一-龠]/.test(nextChar)) continue;
+      if (/[a-zA-Z0-9]$/.test(part) && /^[一-龠]/.test(nextChar)) continue;
+
+      // 助詞・接続助詞の直前での改行を避ける（例：「と」「は」「が」「の」「に」）
+      if (/^[とばがのに]$/.test(nextChar)) continue;
+
+      // 句読点直前はOKだけど助詞直前は避けるスコア調整
+      let score = 0;
+      if (/[、。]$/.test(part)) score += 7;
+      if (/[はがをにともの]$/.test(part)) score -= 8;
+      if (/^[ぁ-んァ-ン一-龠々]$/.test(nextChar)) score -= 3;
+      if (/^[ぁ-ん]{1,2}$/.test(part.slice(-2))) score -= 4;
+
+      if (score > bestScore) {
+        bestCut = i;
+        bestScore = score;
+      }
+    }
+
+    if (bestCut === -1) bestCut = maxLen;
+    lines.push(remaining.slice(0, bestCut));
+    remaining = remaining.slice(bestCut).trimStart();
+  }
+
+  return lines;
+}
 
 
 function isJapanese(str) {
