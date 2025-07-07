@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>65文字行長チェッカー</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: #007acc;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #005999;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            margin-bottom: 30px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .output-section {
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #fafafa;
+            min-height: 200px;
+        }
+        .line-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .line-number {
+            min-width: 40px;
+            color: #666;
+            font-size: 12px;
+            margin-right: 10px;
+            text-align: right;
+            padding-top: 2px;
+        }
+        .line-content {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            padding: 2px 5px;
+            border-radius: 3px;
+            position: relative;
+            min-height: 20px;
+            cursor: text;
+            white-space: pre-wrap;
+            outline: none;
+            border: 1px solid transparent;
+        }
+        .line-content:hover {
+            border-color: #ccc;
+        }
+        .line-content:focus {
+            border-color: #007acc;
+            box-shadow: 0 0 3px rgba(0,122,204,0.3);
+        }
+        .line-content .char {
+            position: relative;
+        }
+        .line-content .char-65 {
+            background-color: #ffcc00;
+            color: #cc6600;
+            font-weight: bold;
+            border-radius: 2px;
+            position: relative;
+        }
+        .line-content .char-65::after {
+            content: '│';
+            position: absolute;
+            right: -1px;
+            top: -2px;
+            color: #cc6600;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .line-content .punctuation {
+            background-color: #e6f3ff;
+            color: #0066cc;
+            font-weight: bold;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+        .line-count {
+            min-width: 60px;
+            font-size: 12px;
+            margin-left: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .line-normal {
+            background: #e8f5e8;
+            color: #2d5a2d;
+        }
+        .line-over {
+            background: #ffe6e6;
+            color: #cc0000;
+        }
+        .line-normal .line-content {
+            background: #f0f8f0;
+        }
+        .line-over .line-content {
+            background: #fff0f0;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .warning {
+            color: #cc0000;
+            font-weight: bold;
+        }
+        .info {
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .legend {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 14px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+        .legend-65 {
+            background-color: #ffcc00;
+        }
+        .legend-punctuation {
+            background-color: #e6f3ff;
+        }
+        .ruler {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .ruler-line {
+            letter-spacing: 0;
+        }
+    </style>
+</head>
+<body>
+            <div class="container">
+        <h1 id="title">65文字行長チェッカー</h1>
+        
+        <div class="input-section">
+            <h3>テキストを入力してください：</h3>
+            <div class="controls">
+                <label for="charLimit" style="display: flex; align-items: center; gap: 5px; margin-right: 15px;">
+                    <span>文字数上限:</span>
+                    <input type="number" id="charLimit" value="65" min="1" max="200" style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
+                </label>
+                <button class="btn btn-primary" onclick="removeEmptyLines()">空白行削除</button>
+                <button class="btn btn-secondary" id="undoBtn" onclick="undo()" disabled>元に戻す (Ctrl+Z)</button>
+                <button class="btn btn-secondary" id="redoBtn" onclick="redo()" disabled>やり直し (Ctrl+Y)</button>
+            </div>
+            <textarea id="textInput" placeholder="ここにテキストを入力してください。改行は手動で行ってください。"></textarea>
+        </div>
+        
+        <div class="output-section">
+            <h3>行別文字数チェック結果（編集可能）：</h3>
+            <div class="ruler">
+                <div class="ruler-line">1234567890123456789012345678901234567890123456789012345678901234567890</div>
+                <div class="ruler-line">         1         2         3         4         5         6    65</div>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-color legend-65"></span>
+                    <span id="legendBoundary">65文字目（境界）</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color legend-punctuation"></span>
+                    <span>句読点・区切り文字（改行目安）</span>
+                </div>
+                <div class="legend-item">
+                    <span>💡 各行をクリックして直接編集・改行できます</span>
+                </div>
+            </div>
+            <div id="output">
+                <div class="info">テキストを入力すると、各行の文字数が表示されます。</div>
+            </div>
+        </div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div id="totalLines">総行数: 0</div>
+            <div id="overLines">65文字超過行: 0</div>
+            <div id="maxLength">最大行文字数: 0</div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const output = document.getElementById('output');
+        const stats = document.getElementById('stats');
+        const totalLines = document.getElementById('totalLines');
+        const overLines = document.getElementById('overLines');
+        const maxLength = document.getElementById('maxLength');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        const charLimitInput = document.getElementById('charLimit');
+        const title = document.getElementById('title');
+        const legendBoundary = document.getElementById('legendBoundary');
+
+        // 文字数上限の変更監視
+        charLimitInput.addEventListener('input', function() {
+            const limit = parseInt(this.value) || 65;
+            title.textContent = `${limit}文字行長チェッカー`;
+            legendBoundary.textContent = `${limit}文字目（境界）`;
+            updateOutput();
+        });
+
+        // 句読点・区切り文字の定義
+        const punctuationChars = /[、。，．,;:：；「」『』（）()［］【】〔〕〈〉《》〜～・！!？?.]/;
+
+        // UNDO/REDO用の履歴
+        let history = [];
+        let historyIndex = -1;
+        let isUpdatingFromHistory = false;
+
+        function addToHistory(text) {
+            if (isUpdatingFromHistory) return;
+            
+            // 現在の位置以降の履歴を削除
+            history = history.slice(0, historyIndex + 1);
+            
+            // 新しい状態を追加
+            history.push(text);
+            historyIndex = history.length - 1;
+            
+            // 履歴の上限（100項目）
+            if (history.length > 100) {
+                history.shift();
+                historyIndex--;
+            }
+            
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = historyIndex <= 0;
+            redoBtn.disabled = historyIndex >= history.length - 1;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                isUpdatingFromHistory = true;
+                textInput.value = history[historyIndex];
+                updateOutput();
+                updateUndoRedoButtons();
+                isUpdatingFromHistory = false;
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                isUpdatingFromHistory = true;
+                textInput.value = history[historyIndex];
+                updateOutput();
+                updateUndoRedoButtons();
+                isUpdatingFromHistory = false;
+            }
+        }
+
+        function removeEmptyLines() {
+            const currentText = textInput.value;
+            const lines = currentText.split('\n');
+            const filteredLines = lines.filter(line => line.trim() !== '');
+            const newText = filteredLines.join('\n');
+            
+            if (newText !== currentText) {
+                textInput.value = newText;
+                addToHistory(newText);
+                updateOutput();
+            }
+        }
+
+        // キーボードショートカット
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undo();
+                } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+                    e.preventDefault();
+                    redo();
+                }
+            }
+        });
+
+        function updateOutput() {
+            const text = textInput.value;
+            const charLimit = parseInt(charLimitInput.value) || 65;
+            
+            if (text.trim() === '') {
+                output.innerHTML = '<div class="info">テキストを入力すると、各行の文字数が表示されます。</div>';
+                stats.style.display = 'none';
+                return;
+            }
+
+            const lines = text.split('\n');
+            let overCount = 0;
+            let maxLen = 0;
+            
+            let html = '';
+            
+            lines.forEach((line, index) => {
+                const length = line.length;
+                const isOver = length > charLimit;
+                
+                if (isOver) overCount++;
+                if (length > maxLen) maxLen = length;
+                
+                const lineClass = isOver ? 'line-over' : 'line-normal';
+                const countClass = isOver ? 'line-over' : 'line-normal';
+                
+                // 各文字にクラスを適用
+                let formattedLine = '';
+                if (line.length === 0) {
+                    formattedLine = '';
+                } else {
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        let charClass = 'char';
+                        
+                        // 句読点・区切り文字のチェック
+                        if (punctuationChars.test(char)) {
+                            charClass += ' punctuation';
+                        }
+                        
+                        // 文字数上限目のチェック
+                        if (i === charLimit) {
+                            charClass += ' char-65';
+                        }
+                        
+                        formattedLine += `<span class="${charClass}">${char}</span>`;
+                    }
+                }
+                
+                html += `
+                    <div class="line-container ${lineClass}">
+                        <div class="line-number">${index + 1}</div>
+                        <div class="line-content" contenteditable="true" data-line="${index}" spellcheck="false">${formattedLine}</div>
+                        <div class="line-count ${countClass}">${length}文字</div>
+                    </div>
+                `;
+            });
+            
+            output.innerHTML = html;
+            
+            // 編集可能エリアのイベントリスナーを追加
+            document.querySelectorAll('.line-content[contenteditable="true"]').forEach(element => {
+                element.addEventListener('input', handleLineEdit);
+                element.addEventListener('keydown', handleKeyDown);
+            });
+            
+            // 統計情報を更新
+            totalLines.textContent = `総行数: ${lines.length}`;
+            overLines.innerHTML = `${charLimit}文字超過行: ${overCount}` + (overCount > 0 ? ' <span class="warning">⚠️</span>' : '');
+            maxLength.textContent = `最大行文字数: ${maxLen}`;
+            stats.style.display = 'block';
+        }
+
+        function handleLineEdit(event) {
+            const lineIndex = parseInt(event.target.dataset.line);
+            const newContent = event.target.textContent;
+            
+            // 現在のスクロール位置を保存
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // 元のテキストを更新
+            const lines = textInput.value.split('\n');
+            lines[lineIndex] = newContent;
+            const newText = lines.join('\n');
+            
+            // テキストエリアを更新
+            textInput.value = newText;
+            addToHistory(newText);
+            
+            // 表示を更新
+            updateOutput();
+            
+            // スクロール位置を復元
+            window.scrollTo(0, scrollTop);
+            
+            // 編集中の行にフォーカスを戻す
+            setTimeout(() => {
+                const editingLine = document.querySelector(`[data-line="${lineIndex}"]`);
+                if (editingLine && document.activeElement !== editingLine) {
+                    editingLine.focus();
+                }
+            }, 10);
+        }
+
+        function handleKeyDown(event) {
+            const lineIndex = parseInt(event.target.dataset.line);
+            const lines = textInput.value.split('\n');
+            
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                
+                // 現在のスクロール位置を保存
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // カーソル位置を正確に取得
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                
+                // テキストノードを見つけて位置を計算
+                let cursorPos = 0;
+                const walker = document.createTreeWalker(
+                    event.target,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+                
+                let currentNode;
+                while (currentNode = walker.nextNode()) {
+                    if (currentNode === range.startContainer) {
+                        cursorPos += range.startOffset;
+                        break;
+                    } else {
+                        cursorPos += currentNode.textContent.length;
+                    }
+                }
+                
+                // 現在の行の内容を取得（HTMLタグを除去）
+                const currentLine = event.target.textContent;
+                
+                // カーソル位置で分割
+                const beforeCursor = currentLine.substring(0, cursorPos);
+                const afterCursor = currentLine.substring(cursorPos);
+                
+                // 行を分割
+                lines[lineIndex] = beforeCursor;
+                lines.splice(lineIndex + 1, 0, afterCursor);
+                
+                // テキストエリアを更新
+                const newText = lines.join('\n');
+                textInput.value = newText;
+                addToHistory(newText);
+                
+                // 表示を更新
+                updateOutput();
+                
+                // スクロール位置を復元
+                window.scrollTo(0, scrollTop);
+                
+                // 次の行にフォーカス
+                setTimeout(() => {
+                    const nextLine = document.querySelector(`[data-line="${lineIndex + 1}"]`);
+                    if (nextLine) {
+                        nextLine.focus();
+                        // カーソルを先頭に移動
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        if (nextLine.firstChild) {
+                            range.setStart(nextLine.firstChild, 0);
+                        } else {
+                            range.setStart(nextLine, 0);
+                        }
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }, 10);
+            } else if (event.key === 'Backspace') {
+                // バックスペースキーの処理
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                
+                // カーソルが行の先頭にある場合
+                if (range.startOffset === 0 && range.collapsed) {
+                    // 最初の行でなければ、前の行と結合
+                    if (lineIndex > 0) {
+                        event.preventDefault();
+                        
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        const currentLine = event.target.textContent;
+                        const previousLine = lines[lineIndex - 1];
+                        const cursorPosition = previousLine.length; // 前の行の末尾にカーソルを配置
+                        
+                        // 前の行と現在の行を結合
+                        lines[lineIndex - 1] = previousLine + currentLine;
+                        lines.splice(lineIndex, 1);
+                        
+                        // テキストエリアを更新
+                        const newText = lines.join('\n');
+                        textInput.value = newText;
+                        addToHistory(newText);
+                        
+                        // 表示を更新
+                        updateOutput();
+                        
+                        // スクロール位置を復元
+                        window.scrollTo(0, scrollTop);
+                        
+                        // 結合された行にフォーカスしてカーソル位置を設定
+                        setTimeout(() => {
+                            const mergedLine = document.querySelector(`[data-line="${lineIndex - 1}"]`);
+                            if (mergedLine) {
+                                mergedLine.focus();
+                                
+                                // カーソルを結合点に移動
+                                const range = document.createRange();
+                                const sel = window.getSelection();
+                                
+                                // テキストノードを見つけて位置を設定
+                                let textNode = mergedLine.firstChild;
+                                let currentPos = 0;
+                                
+                                while (textNode && currentPos < cursorPosition) {
+                                    if (textNode.nodeType === Node.TEXT_NODE) {
+                                        if (currentPos + textNode.textContent.length >= cursorPosition) {
+                                            range.setStart(textNode, cursorPosition - currentPos);
+                                            break;
+                                        }
+                                        currentPos += textNode.textContent.length;
+                                    }
+                                    textNode = textNode.nextSibling;
+                                }
+                                
+                                if (textNode) {
+                                    range.collapse(true);
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                }
+                            }
+                        }, 10);
+                    }
+                } else {
+                    // 通常のバックスペース処理
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, scrollTop);
+                    });
+                }
+            } else if (event.key === 'Delete') {
+                // Deleteキーの処理
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                const currentLine = event.target.textContent;
+                
+                // カーソルが行の末尾にある場合
+                if (range.startOffset === currentLine.length && range.collapsed) {
+                    // 最後の行でなければ、次の行と結合
+                    if (lineIndex < lines.length - 1) {
+                        event.preventDefault();
+                        
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        const nextLine = lines[lineIndex + 1];
+                        const cursorPosition = currentLine.length; // 現在の行の末尾にカーソルを配置
+                        
+                        // 現在の行と次の行を結合
+                        lines[lineIndex] = currentLine + nextLine;
+                        lines.splice(lineIndex + 1, 1);
+                        
+                        // テキストエリアを更新
+                        const newText = lines.join('\n');
+                        textInput.value = newText;
+                        addToHistory(newText);
+                        
+                        // 表示を更新
+                        updateOutput();
+                        
+                        // スクロール位置を復元
+                        window.scrollTo(0, scrollTop);
+                        
+                        // 結合された行にフォーカスしてカーソル位置を設定
+                        setTimeout(() => {
+                            const mergedLine = document.querySelector(`[data-line="${lineIndex}"]`);
+                            if (mergedLine) {
+                                mergedLine.focus();
+                                
+                                // カーソルを結合点に移動
+                                const range = document.createRange();
+                                const sel = window.getSelection();
+                                
+                                // テキストノードを見つけて位置を設定
+                                let textNode = mergedLine.firstChild;
+                                let currentPos = 0;
+                                
+                                while (textNode && currentPos < cursorPosition) {
+                                    if (textNode.nodeType === Node.TEXT_NODE) {
+                                        if (currentPos + textNode.textContent.length >= cursorPosition) {
+                                            range.setStart(textNode, cursorPosition - currentPos);
+                                            break;
+                                        }
+                                        currentPos += textNode.textContent.length;
+                                    }
+                                    textNode = textNode.nextSibling;
+                                }
+                                
+                                if (textNode) {
+                                    range.collapse(true);
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                }
+                            }
+                        }, 10);
+                    }
+                } else {
+                    // 通常のDelete処理
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, scrollTop);
+                    });
+                }
+            }
+        }
+
+        textInput.addEventListener('input', function() {
+            addToHistory(textInput.value);
+            updateOutput();
+        });
+        textInput.addEventListener('keyup', updateOutput);
+        textInput.addEventListener('paste', () => {
+            setTimeout(() => {
+                addToHistory(textInput.value);
+                updateOutput();
+            }, 10);
+        });
+
+        // 初期化
+        addToHistory('');
+        updateOutput();
+    </script>
+</body>
+</html>
